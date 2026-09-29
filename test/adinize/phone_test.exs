@@ -20,6 +20,10 @@ defmodule Adinize.PhoneTest do
     end
   end
 
+  test "invalid UTF-8 has no E.164 form and does not raise" do
+    assert Phone.e164(<<255, ?1, ?2>>, "EG") == nil
+  end
+
   test "an unknown default country is an error, never a guess" do
     assert Phone.country_code("ZZ") == :error
     assert Phone.country_code("eg") == {:ok, "20"}

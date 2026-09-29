@@ -77,6 +77,41 @@
     "note": "US local, no trunk 0"
   },
   {
+    "input": "+44 (0)7700 900123",
+    "default_country": null,
+    "e164": "+447700900123",
+    "sha256": "a8acc3a90a7b4e4dc65e93db9240ed26523050ef754d63b75b5161de76781436",
+    "note": "the (0) trunk hint after a country code is dropped"
+  },
+  {
+    "input": "01001234567 x12",
+    "default_country": "EG",
+    "e164": "+201001234567",
+    "sha256": "9476e557c9e413deae474978709659f5b4f1c6a18553eddff8f042702843d0c7",
+    "note": "an extension after x is cut"
+  },
+  {
+    "input": "+1 650 555 1212 ext. 99",
+    "default_country": null,
+    "e164": "+16505551212",
+    "sha256": "1e231c66011e7a2d867a9cfae267a6aff103cf4913640b6e71a99850fc0ffbc8",
+    "note": "an extension after ext. is cut"
+  },
+  {
+    "input": "(+44) 7700 900123",
+    "default_country": "EG",
+    "e164": "+447700900123",
+    "sha256": "a8acc3a90a7b4e4dc65e93db9240ed26523050ef754d63b75b5161de76781436",
+    "note": "a + inside a bracket still marks an international number"
+  },
+  {
+    "input": "＋44 7700 900123",
+    "default_country": "EG",
+    "e164": "+447700900123",
+    "sha256": "a8acc3a90a7b4e4dc65e93db9240ed26523050ef754d63b75b5161de76781436",
+    "note": "a fullwidth plus counts as +"
+  },
+  {
     "input": "0501234567",
     "default_country": null,
     "e164": null,

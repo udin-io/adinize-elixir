@@ -49,11 +49,25 @@ defmodule Adinize.Phone do
   @doc "The E.164 form, or `nil` when the number has none."
   @spec e164(String.t() | nil, String.t() | nil) :: String.t() | nil
   def e164(value, default_country) when is_binary(value) do
-    trimmed = String.trim(value)
-    digits = String.replace(trimmed, ~r/[^0-9]/, "")
+    if String.valid?(value), do: normalise(value, default_country)
+  end
+
+  def e164(_value, _default_country), do: nil
+
+  defp normalise(value, default_country) do
+    # A fullwidth plus counts as +; an extension is not part of the number;
+    # "(0)" after a country code is a written trunk hint, not a digit.
+    number =
+      value
+      |> String.replace("＋", "+")
+      |> String.split(~r/(?:ext\.?|x|#|;)/iu, parts: 2)
+      |> hd()
+      |> String.replace(~r/\(\s*0\s*\)/u, "")
+
+    digits = String.replace(number, ~r/[^0-9]/, "")
 
     cond do
-      String.starts_with?(trimmed, "+") ->
+      number =~ ~r/\A[^0-9]*\+/u ->
         valid("+" <> digits)
 
       String.starts_with?(digits, "00") ->
@@ -63,8 +77,6 @@ defmodule Adinize.Phone do
         local(digits, default_country)
     end
   end
-
-  def e164(_value, _default_country), do: nil
 
   defp local(digits, country) when is_binary(country) and digits != "" do
     case Map.fetch(@countries, String.upcase(country)) do
