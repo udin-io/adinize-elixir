@@ -234,6 +234,7 @@ defmodule AdinizeTest do
           {"bad precomputed hash", [user: [email_hash: "ABC"]]},
           {"consent not a keyword list", [user: [consent: [1]]]},
           {"consent with an unknown key", [user: [consent: [ads: true]]]},
+          {"consent with a tuple key", [user: [consent: %{{:a} => true}]]},
           {"user not a list", [user: "jane"]},
           {"empty event_id", [event_id: ""]},
           {"event_time as text", [event_time: "yesterday"]},

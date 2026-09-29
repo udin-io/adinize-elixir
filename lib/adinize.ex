@@ -55,7 +55,9 @@ defmodule Adinize do
       {:error,
        %Error{code: "TOO_MANY_EVENTS", message: "send at most #{@max_batch} events a request"}}
 
-  def track_many([_ | _] = events, opts) when is_list(opts) do
+  # length/1 in the guard also refuses an improper list: the guard fails and
+  # the last clause returns INVALID_OPTION.
+  def track_many([_ | _] = events, opts) when is_list(opts) and length(events) > 0 do
     with :ok <- batch_keys_only(opts),
          {:ok, country} <- default_country(Keyword.get(opts, :default_country)),
          {:ok, bodies} <- build_all(events, country),

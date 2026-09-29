@@ -21,7 +21,7 @@ if Code.ensure_loaded?(Plug.Conn) do
     import Plug.Conn
 
     @spec context(Plug.Conn.t(), keyword()) :: keyword()
-    def context(%Plug.Conn{} = conn, opts \\ []) do
+    def context(%Plug.Conn{} = conn, opts \\ []) when is_list(opts) do
       conn = fetch_cookies(conn)
       cookies = conn.cookies
 
@@ -35,7 +35,7 @@ if Code.ensure_loaded?(Plug.Conn) do
 
       present(
         visitor_id: cookies["_mb_vid"],
-        page_url: page_url(conn, Keyword.get(opts, :query_string, false)),
+        page_url: page_url(conn, Keyword.get(opts, :query_string) == true),
         user: user
       )
     end

@@ -108,7 +108,8 @@ defmodule Adinize.Event do
   defp user_field(:consent, value, _default_country) when is_list(value) or is_map(value) do
     if (is_map(value) or Keyword.keyword?(value)) and
          Enum.all?(value, fn {k, v} ->
-           to_string(k) in ~w(analytics marketing functional) and is_boolean(v)
+           (is_atom(k) or is_binary(k)) and to_string(k) in ~w(analytics marketing functional) and
+             is_boolean(v)
          end),
        do: {:ok, {"consent", Map.new(value, fn {k, v} -> {to_string(k), v} end)}},
        else: invalid("user consent takes analytics, marketing and functional booleans")

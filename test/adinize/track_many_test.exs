@@ -54,6 +54,7 @@ defmodule Adinize.TrackManyTest do
 
   for {label, events, extra} <- [
         {"an empty list", [], []},
+        {"an improper list", [{"Lead", []} | :x], []},
         {"not a list", :events, []},
         {"an entry that is not {name, opts}", ["Lead"], []},
         {"one malformed event among good ones", [{"Lead", []}, {"Lead", [evnt_id: 1]}], []},

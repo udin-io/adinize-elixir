@@ -42,6 +42,13 @@ defmodule Adinize.PlugTest do
     assert ctx[:page_url] == "https://shop.example.com/done?utm_source=meta"
   end
 
+  test "query_string: takes only true to keep the query string" do
+    conn = shopper_conn("https://shop.example.com/done?email=jane@example.com")
+
+    assert Adinize.Plug.context(conn, query_string: "true")[:page_url] ==
+             "https://shop.example.com/done"
+  end
+
   test "an IPv6 client address" do
     ctx =
       conn(:get, "https://shop.example.com/")
