@@ -1,0 +1,256 @@
+openapi: 3.1.0
+info:
+  title: adinize server events API
+  version: 1.0.0
+  description: |
+    Send conversions from your backend. adinize stores each event once per
+    pixel and event_id, attributes it to the ad click, and forwards it to the
+    Meta Conversions API, the TikTok Events API and Google Ads.
+
+    Create a secret key on your pixel's page in adinize. Keep it on your
+    server; never put it in a web page.
+servers:
+  - url: https://adinize.ai
+security:
+  - secretKey: []
+paths:
+  /api/server/v1/events:
+    post:
+      operationId: sendEvents
+      summary: Send a batch of 1 to 100 events
+      description: |
+        Each event gets a result, in input order. Retrying with the same
+        event_id is always safe: an event_id the pixel already holds reports
+        `duplicate` and stores nothing.
+
+        An event reaches a platform only if its event_name is enabled for
+        that platform on the pixel's Platforms tab.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EventBatch"
+            example:
+              events:
+                - event_id: order_10482
+                  event_name: Purchase
+                  event_time: 1790500000
+                  visitor_id: mb.1790499000000.k3j9x2a1b
+                  page_url: https://shop.example.com/checkout/thank-you
+                  user_data:
+                    email_hash: 259b65833bbadfd58ee66dde290489a6e51518339de4886d2331027751f0913a
+                    client_ip_address: 203.0.113.7
+                    client_user_agent: "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X)"
+                  event_data:
+                    value: 129.5
+                    currency: EGP
+                    order_id: "10482"
+      responses:
+        "200":
+          description: The batch parsed. Read each result for its status.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BatchResults"
+        "400":
+          description: |
+            INVALID_REQUEST. The body has no events list, or it holds 0 or
+            more than 100 events. A body that is not JSON also gets 400; send
+            `Accept: application/json` to get this error shape for it.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: The secret key is missing, unknown or revoked (INVALID_KEY).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: The key's pixel is paused or archived (PIXEL_INACTIVE).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "429":
+          description: |
+            RATE_LIMITED. Either this request would take the pixel past 6,000
+            events in a minute (the whole request is refused and nothing is
+            stored), or the request carries a wrong key and its IP address
+            already sent 60 wrong keys this minute. A valid key is never
+            refused for its IP. Wait for Retry-After seconds, then retry the
+            same events.
+          headers:
+            Retry-After:
+              schema:
+                type: integer
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+components:
+  securitySchemes:
+    secretKey:
+      type: http
+      scheme: bearer
+      description: A pixel secret key, adzsk_...
+  schemas:
+    EventBatch:
+      type: object
+      required: [events]
+      properties:
+        events:
+          type: array
+          minItems: 1
+          maxItems: 100
+          items:
+            $ref: "#/components/schemas/Event"
+    Event:
+      type: object
+      required: [event_id, event_name, event_time]
+      properties:
+        event_id:
+          type: string
+          minLength: 1
+          maxLength: 128
+          description: Your ID for this event, such as the order number. adinize stores one event per event_id and pixel.
+        event_name:
+          type: string
+          minLength: 1
+          maxLength: 50
+          description: Any name. Standard names such as Purchase, Lead and AddToCart map to each platform's own name.
+        event_time:
+          oneOf:
+            - type: integer
+              description: Unix time in seconds, not milliseconds.
+            - type: string
+              format: date-time
+          description: When the event happened. At most 7 days old and at most 5 minutes ahead.
+        visitor_id:
+          type: string
+          description: The value of the _mb_vid cookie the browser pixel sets. It joins the event to the ad click.
+        page_url:
+          type: string
+        user_data:
+          $ref: "#/components/schemas/UserData"
+        event_data:
+          type: object
+          additionalProperties: true
+          description: At most 32 KB as JSON and at most 5 levels deep.
+          properties:
+            value:
+              type: number
+            currency:
+              type: string
+              description: ISO 4217 code
+            order_id:
+              type: string
+            content_ids:
+              type: array
+              items:
+                type: string
+    UserData:
+      type: object
+      description: |
+        Send hashes, never raw email or phone: an event carrying `email` or
+        `phone` is rejected with RAW_PII. Each *_hash is the SHA-256 of the
+        trimmed, lowercased value, as 64 lowercase hex characters. Every
+        value is a string, except `consent`.
+      properties:
+        email_hash:
+          $ref: "#/components/schemas/Sha256"
+        phone_hash:
+          $ref: "#/components/schemas/Sha256"
+        first_name_hash:
+          $ref: "#/components/schemas/Sha256"
+        last_name_hash:
+          $ref: "#/components/schemas/Sha256"
+        street_address_hash:
+          $ref: "#/components/schemas/Sha256"
+        external_id:
+          type: string
+        client_ip_address:
+          type: string
+          description: The shopper's IP address, not your server's.
+        client_user_agent:
+          type: string
+          description: The shopper's browser user agent, not your server's.
+        fbp:
+          type: string
+        fbc:
+          type: string
+        gclid:
+          type: string
+        ttclid:
+          type: string
+        city:
+          type: string
+        state:
+          type: string
+        postal_code:
+          type: string
+        country_code:
+          type: string
+        consent:
+          type: object
+          properties:
+            analytics:
+              type: boolean
+            marketing:
+              type: boolean
+            functional:
+              type: boolean
+    Sha256:
+      type: string
+      pattern: "^[0-9a-f]{64}$"
+    BatchResults:
+      type: object
+      required: [results]
+      properties:
+        results:
+          type: array
+          items:
+            $ref: "#/components/schemas/EventResult"
+    EventResult:
+      type: object
+      required: [event_id, status]
+      properties:
+        event_id:
+          type: [string, "null"]
+        status:
+          type: string
+          enum: [accepted, duplicate, rejected]
+        errors:
+          type: array
+          description: Present when status is rejected.
+          items:
+            $ref: "#/components/schemas/EventError"
+    EventError:
+      type: object
+      required: [field, code, message]
+      properties:
+        field:
+          type: string
+          example: user_data.email
+        code:
+          type: string
+          enum: [REQUIRED, INVALID, TOO_OLD, IN_FUTURE, INVALID_HASH, RAW_PII, TOO_LARGE, TOO_DEEP]
+        message:
+          type: string
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code:
+              type: string
+              enum: [INVALID_REQUEST, INVALID_KEY, PIXEL_INACTIVE, RATE_LIMITED]
+            message:
+              type: string
+            retry_after:
+              type: integer

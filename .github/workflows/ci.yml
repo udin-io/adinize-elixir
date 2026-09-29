@@ -1,0 +1,59 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Elixir ${{ matrix.elixir }} / OTP ${{ matrix.otp }}
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - elixir: "1.17"
+            otp: "27"
+          - elixir: "1.18"
+            otp: "27"
+          - elixir: "1.19"
+            otp: "28"
+          - elixir: "1.20"
+            otp: "28"
+            lint: true
+    env:
+      MIX_ENV: test
+    steps:
+      - uses: actions/checkout@v7
+      - uses: erlef/setup-beam@v1
+        with:
+          elixir-version: ${{ matrix.elixir }}
+          otp-version: ${{ matrix.otp }}
+      - uses: actions/cache@v6
+        with:
+          path: |
+            deps
+            _build
+          key: mix-${{ matrix.elixir }}-${{ matrix.otp }}-${{ hashFiles('mix.lock') }}
+      - run: mix deps.get
+      - run: mix deps.unlock --check-unused
+      - run: mix compile --warnings-as-errors
+      - run: mix format --check-formatted
+        if: matrix.lint
+      - run: mix credo --strict
+        if: matrix.lint
+      - run: mix test
+
+  spec-drift:
+    name: Vendored spec equals the live contract
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - run: |
+          curl --fail --silent --show-error --max-time 30 \
+            https://adinize.ai/api/server/v1/openapi.yaml -o live.yaml
+          diff -u spec/server-events-v1.yaml live.yaml
