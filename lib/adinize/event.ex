@@ -8,7 +8,7 @@ defmodule Adinize.Event do
 
   alias Adinize.{Error, Hash}
 
-  @event_keys [:event_id, :event_time, :visitor_id, :page_url, :user, :data]
+  @event_keys [:event_id, :event_time, :visitor_id, :page_url, :query_string, :user, :data]
 
   @hashed %{
     email: "email_hash",
@@ -31,6 +31,7 @@ defmodule Adinize.Event do
          {:ok, event_time} <- event_time(Keyword.get(opts, :event_time)),
          {:ok, visitor_id} <- optional_string(opts, :visitor_id),
          {:ok, page_url} <- optional_string(opts, :page_url),
+         page_url = page_url(page_url, Keyword.get(opts, :query_string) == true),
          {:ok, user_data} <- user_data(Keyword.get(opts, :user, []), default_country),
          {:ok, event_data} <- event_data(Keyword.get(opts, :data, [])) do
       {:ok,
@@ -66,6 +67,11 @@ defmodule Adinize.Event do
       _value -> invalid("#{key} must be a string")
     end
   end
+
+  # A query string can hold an email or a token; it goes only when asked.
+  defp page_url(nil, _keep_query?), do: nil
+  defp page_url(url, true), do: url
+  defp page_url(url, false), do: url |> URI.parse() |> Map.put(:query, nil) |> URI.to_string()
 
   defp user_data(user, default_country) when is_list(user) or is_map(user) do
     user = Enum.to_list(user)

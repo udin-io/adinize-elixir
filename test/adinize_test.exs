@@ -109,6 +109,40 @@ defmodule AdinizeTest do
       assert event["user_data"] == %{"email_hash" => hash}
     end
 
+    test "drops the query string from a page_url passed directly" do
+      respond(200, Stub.accepted("x"))
+      track(page_url: "https://shop.example.com/done?email=jane@example.com#thanks")
+      assert sent_event()["page_url"] == "https://shop.example.com/done#thanks"
+    end
+
+    test "keeps the query string with query_string: true" do
+      respond(200, Stub.accepted("x"))
+      track(page_url: "https://shop.example.com/done?utm_source=meta", query_string: true)
+      assert sent_event()["page_url"] == "https://shop.example.com/done?utm_source=meta"
+    end
+
+    test "track_many drops each page_url's query string too" do
+      respond(200, %{
+        "results" => [
+          %{"event_id" => "a", "status" => "accepted"},
+          %{"event_id" => "b", "status" => "accepted"}
+        ]
+      })
+
+      Adinize.track_many(
+        [
+          {"Lead", [event_id: "a", page_url: "https://s.example.com/a?x=1"]},
+          {"Lead", [event_id: "b", page_url: "https://s.example.com/b?y=2", query_string: true]}
+        ],
+        Stub.opts(__MODULE__)
+      )
+
+      assert_received {:request, _conn, raw}
+      %{"events" => [a, b]} = Jason.decode!(raw)
+      assert a["page_url"] == "https://s.example.com/a"
+      assert b["page_url"] == "https://s.example.com/b?y=2"
+    end
+
     test "leaves out a phone that has no E.164 form" do
       respond(200, Stub.accepted("x"))
       track(user: [phone: "0501234567"])
