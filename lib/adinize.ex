@@ -55,10 +55,9 @@ defmodule Adinize do
       {:error,
        %Error{code: "TOO_MANY_EVENTS", message: "send at most #{@max_batch} events a request"}}
 
-  # length/1 in the guard also refuses an improper list: the guard fails and
-  # the last clause returns INVALID_OPTION.
-  def track_many([_ | _] = events, opts) when is_list(opts) and length(events) > 0 do
-    with :ok <- batch_keys_only(opts),
+  def track_many([_ | _] = events, opts) when is_list(opts) do
+    with :ok <- proper_list(events),
+         :ok <- batch_keys_only(opts),
          {:ok, country} <- default_country(Keyword.get(opts, :default_country)),
          {:ok, bodies} <- build_all(events, country),
          {:ok, results} <- Client.post_events(bodies, Keyword.delete(opts, :default_country)) do
@@ -68,6 +67,10 @@ defmodule Adinize do
 
   def track_many(_events, _opts),
     do: invalid("events must be a non-empty list, and options a keyword list")
+
+  defp proper_list(events) do
+    if List.improper?(events), do: invalid("events must be a proper list"), else: :ok
+  end
 
   defp batch_keys_only(opts) do
     if Keyword.keyword?(opts) and Keyword.keys(opts) -- @batch_keys == [],
