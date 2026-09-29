@@ -98,6 +98,13 @@
     "note": "more than 15 digits after +: not hashed"
   },
   {
+    "input": "+01001234567",
+    "default_country": null,
+    "e164": null,
+    "sha256": null,
+    "note": "a + then 0 is no country code (the old pixel's EG output): not hashed"
+  },
+  {
     "input": "",
     "default_country": "EG",
     "e164": null,
