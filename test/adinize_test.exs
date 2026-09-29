@@ -299,6 +299,50 @@ defmodule AdinizeTest do
       end
     end
 
+    for {label, data, path} <- [
+          {"a nested email", [customer: %{email: "jane@example.com"}], "data.customer.email"},
+          {"a key containing email", [customer_email: "jane@example.com"], "data.customer_email"},
+          {"a key containing phone", %{"Phone Number" => "0100"}, "data.Phone Number"},
+          {"first_name", [first_name: "Jane"], "data.first_name"},
+          {"last_name at depth 2", [a: [b: %{"last_name" => "Doe"}]], "data.a.b.last_name"},
+          {"street_address in a list", [items: [%{sku: "1"}, %{street_address: "1 Nile St"}]],
+           "data.items[1].street_address"},
+          {"a key with a leading space", %{" email" => "jane@example.com"}, "data. email"}
+        ] do
+      test "INVALID_OPTION naming the key path, nothing sent: #{label}" do
+        respond(200, Stub.accepted("o1"))
+
+        assert {:error, %Adinize.Error{code: "INVALID_OPTION", message: message}} =
+                 track(data: unquote(Macro.escape(data)))
+
+        assert message =~ unquote(path)
+        refute message =~ "jane"
+        refute message =~ "Nile"
+        refute_received {:request, _, _}
+      end
+    end
+
+    test "a struct inside data does not raise" do
+      respond(200, Stub.accepted("o1"))
+      assert {:ok, _} = track(data: [placed_at: ~U[2026-09-29 10:00:00Z], value: 1])
+    end
+
+    test "an improper list inside data is INVALID_OPTION" do
+      respond(200, Stub.accepted("o1"))
+
+      assert {:error, %Adinize.Error{code: "INVALID_OPTION"}} =
+               track(data: [items: [%{sku: "1"} | :tail]])
+
+      refute_received {:request, _, _}
+    end
+
+    test "data keys that only look close still go out" do
+      respond(200, Stub.accepted("o1"))
+
+      assert {:ok, _} =
+               track(data: [value: 1, contents: [%{id: "a", quantity: 2}], shipping_name: "x"])
+    end
+
     test "options that are not a keyword list" do
       assert {:error, %Adinize.Error{code: "INVALID_OPTION"}} = Adinize.track("x", [:a])
       assert {:error, %Adinize.Error{code: "INVALID_OPTION"}} = Adinize.track("x", "a")

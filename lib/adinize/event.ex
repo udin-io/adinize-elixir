@@ -129,9 +129,10 @@ defmodule Adinize.Event do
 
       # event_data is sent as given, so personal data here would leave in
       # plain text. Send it under `user:`, which hashes it.
-      case Enum.find(Map.keys(data), &(String.downcase(&1) in ["email", "phone"])) do
+      case personal_key_path(data, "data") do
         nil -> {:ok, data}
-        key -> invalid("data must not hold #{key}; pass it under user: so it is hashed")
+        {:improper, path} -> invalid("#{path} must be a proper list")
+        path -> invalid("data must not hold #{path}; pass it under user: so it is hashed")
       end
     else
       invalid("data must be a keyword list or a map with string keys")
@@ -139,6 +140,43 @@ defmodule Adinize.Event do
   end
 
   defp event_data(_data), do: invalid("data must be a keyword list or map")
+
+  @personal_names ~w(first_name last_name street_address)
+
+  # The path of the first key, at any depth, whose name marks personal data.
+  # A struct such as a DateTime is a value, not a container.
+  defp personal_key_path(struct, _path) when is_struct(struct), do: nil
+
+  defp personal_key_path(map, path) when is_map(map) do
+    Enum.find_value(map, fn {key, value} ->
+      name = if is_atom(key) or is_binary(key), do: to_string(key)
+      key_path = "#{path}.#{name}"
+
+      if name && personal_name?(name), do: key_path, else: personal_key_path(value, key_path)
+    end)
+  end
+
+  defp personal_key_path(list, path) when is_list(list) do
+    cond do
+      List.improper?(list) ->
+        {:improper, path}
+
+      Keyword.keyword?(list) and list != [] ->
+        personal_key_path(Map.new(list), path)
+
+      true ->
+        list
+        |> Enum.with_index()
+        |> Enum.find_value(fn {value, i} -> personal_key_path(value, "#{path}[#{i}]") end)
+    end
+  end
+
+  defp personal_key_path(_value, _path), do: nil
+
+  defp personal_name?(name) do
+    name = name |> String.trim() |> String.downcase()
+    String.contains?(name, ["email", "phone"]) or name in @personal_names
+  end
 
   defp known_keys(list, allowed, what) do
     if is_list(list) and Keyword.keyword?(list) do
