@@ -70,13 +70,50 @@ Every call returns a value and never raises.
 | `{:error, %Adinize.Error{status: 429, retry_after: 12}}` | wait 12 seconds, then send the same events again |
 | `{:error, %Adinize.Error{code: "INVALID_OPTION"}}` | a malformed option; nothing was sent |
 
-`Adinize.Error` lists every code. This release does not retry.
+`Adinize.Error` lists every code. `track/2` does not retry unless you pass
+`retry: true` (see below).
+
+## Sending in the background
+
+A developer who does not want a web request to wait on adinize adds a
+batcher to the supervision tree and sends asynchronously:
+
+```elixir
+children = [{Adinize.Batcher, flush_interval: 1_000, max_batch: 100}]
+
+Adinize.track_async("Purchase",
+  event_id: "order_10482",
+  data: [value: 129.5, currency: "EGP"]
+)
+#=> :ok
+```
+
+- Sends every `flush_interval` ms (default 1,000) or at `max_batch`
+  events (default 100, capped at 100). Past `max_queue` (default 10,000)
+  it drops the newest event and emits telemetry, rather than growing
+  memory without bound.
+- On a 429 it waits `Retry-After` (falling back to the same backoff as a
+  5xx when the server gives none); on a 5xx, a timeout or a transport
+  error it backs off with jitter, up to 5 attempts total, the same
+  `event_id` each time — the server answers a retried event `:duplicate`,
+  never twice. A 400 or 401 is never retried.
+- On a supervised stop it flushes what it holds, best effort, within
+  `shutdown` ms (default 5,000).
+- `track/2` (sync) takes the same retry policy with `retry: true`
+  (default `false`).
+- Telemetry: `[:adinize, :request, :start | :stop | :exception]` around
+  every send, `[:adinize, :event, :rejected]` for a rejected result, and
+  `[:adinize, :event, :dropped]` when an event is dropped (queue full,
+  retries exhausted, a non-retryable error, or shutdown). Metadata never
+  holds the secret key, a raw personal field or the request/response —
+  only ids, names and the server's own field/code/message strings.
 
 ## The secret key
 
-The SDK never logs the key and never puts it in an error. Finch's
-telemetry events carry the request headers, key included: if your app logs
-Finch telemetry metadata, filter the `authorization` header first.
+The SDK never logs the key and never puts it in an error or in its own
+telemetry. Finch's telemetry events carry the request headers, key
+included: if your app logs Finch telemetry metadata, filter the
+`authorization` header first.
 
 ## License
 
