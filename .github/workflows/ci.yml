@@ -4,6 +4,7 @@ on:
   push:
     branches: [main]
   pull_request:
+    types: [opened, synchronize, reopened, labeled]
 
 permissions:
   contents: read
@@ -12,6 +13,9 @@ jobs:
   test:
     name: Elixir ${{ matrix.elixir }} / OTP ${{ matrix.otp }}
     runs-on: ubuntu-24.04
+    # PR CI runs only once the PR carries `ready-for-review`; a push to main
+    # always runs.
+    if: github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'ready-for-review')
     strategy:
       fail-fast: false
       matrix:
@@ -51,6 +55,7 @@ jobs:
   spec-drift:
     name: Vendored spec equals the live contract
     runs-on: ubuntu-24.04
+    if: github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'ready-for-review')
     steps:
       - uses: actions/checkout@v7
       - run: |
