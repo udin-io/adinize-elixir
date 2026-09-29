@@ -28,6 +28,11 @@ defmodule Adinize.Phone do
   number drops its trunk prefix and gains the default country's code; with
   no default country it has no E.164 form. There is no US fallback.
 
+  For EG, SA, AE, GB and JO, whose numbers start with a trunk `0` at home:
+  a `0` written after the country code is dropped, and digits that already
+  start with the country code count as international. Arabic-Indic and
+  Persian digits become ASCII first.
+
   Default countries: #{@countries |> Map.keys() |> Enum.sort() |> Enum.join(", ")}.
   A number with a `+` works for any country.
   """
@@ -59,6 +64,7 @@ defmodule Adinize.Phone do
     # "(0)" after a country code is a written trunk hint, not a digit.
     number =
       value
+      |> ascii_digits()
       |> String.replace("＋", "+")
       |> String.split(~r/(?:ext\.?|x|#|;)/iu, parts: 2)
       |> hd()
@@ -68,20 +74,60 @@ defmodule Adinize.Phone do
 
     cond do
       number =~ ~r/\A[^0-9]*\+/u ->
-        valid("+" <> digits)
+        international(digits)
 
       String.starts_with?(digits, "00") ->
-        valid("+" <> binary_part(digits, 2, byte_size(digits) - 2))
+        international(binary_part(digits, 2, byte_size(digits) - 2))
 
       true ->
         local(digits, default_country)
     end
   end
 
+  # Arabic-Indic (U+0660..0669) and Persian (U+06F0..06F9) digits.
+  defp ascii_digits(value) do
+    for <<char::utf8 <- value>>, into: "" do
+      cond do
+        char in 0x0660..0x0669 -> <<char - 0x0660 + ?0>>
+        char in 0x06F0..0x06F9 -> <<char - 0x06F0 + ?0>>
+        true -> <<char::utf8>>
+      end
+    end
+  end
+
+  # A trunk 0 written after the country code ("+20 0100...") is dropped for
+  # the countries that dial one at home. Other codes keep their 0: Italian
+  # numbers start with it.
+  @trunk_zero_codes for {_country, {code, "0"}} <- @countries, do: code
+
+  defp international(digits) do
+    case Enum.find(@trunk_zero_codes, &String.starts_with?(digits, &1 <> "0")) do
+      nil ->
+        valid("+" <> digits)
+
+      code ->
+        valid(
+          "+" <>
+            code <>
+            binary_part(digits, byte_size(code) + 1, byte_size(digits) - byte_size(code) - 1)
+        )
+    end
+  end
+
   defp local(digits, country) when is_binary(country) and digits != "" do
     case Map.fetch(@countries, String.upcase(country)) do
-      {:ok, {code, trunk}} -> valid("+" <> code <> drop_trunk(digits, trunk))
-      :error -> nil
+      # Digits that already start with a trunk-0 country's own code were
+      # written without the +: a local number there starts with 0.
+      {:ok, {code, "0"}} ->
+        if String.starts_with?(digits, code),
+          do: international(digits),
+          else: valid("+" <> code <> drop_trunk(digits, "0"))
+
+      {:ok, {code, trunk}} ->
+        valid("+" <> code <> drop_trunk(digits, trunk))
+
+      :error ->
+        nil
     end
   end
 

@@ -112,6 +112,69 @@
     "note": "a fullwidth plus counts as +"
   },
   {
+    "input": "+20 0100 123 4567",
+    "default_country": null,
+    "e164": "+201001234567",
+    "sha256": "9476e557c9e413deae474978709659f5b4f1c6a18553eddff8f042702843d0c7",
+    "note": "a trunk 0 written after +20 is dropped"
+  },
+  {
+    "input": "0020 0100 123 4567",
+    "default_country": null,
+    "e164": "+201001234567",
+    "sha256": "9476e557c9e413deae474978709659f5b4f1c6a18553eddff8f042702843d0c7",
+    "note": "a trunk 0 written after 0020 is dropped"
+  },
+  {
+    "input": "+966 050 123 4567",
+    "default_country": "EG",
+    "e164": "+966501234567",
+    "sha256": "90a38f9294c5ab0c10c460c72353df5b7d0bd03ca3c4a01809c0f6363705b84f",
+    "note": "a trunk 0 written after +966 is dropped"
+  },
+  {
+    "input": "+971 050 123 4567",
+    "default_country": null,
+    "e164": "+971501234567",
+    "sha256": "5cd602a57e6a0414e38023888d6275b31208be50ab5cf4c1e7f197138da7fed1",
+    "note": "a trunk 0 written after +971 is dropped"
+  },
+  {
+    "input": "+39 06 1234 5678",
+    "default_country": null,
+    "e164": "+390612345678",
+    "sha256": "37b702607839d6dc5fc81d95b52e550e336413bf7ae2e04cafeca79f066ea44b",
+    "note": "Italy keeps its 0: only EG, SA, AE, GB and JO drop it"
+  },
+  {
+    "input": "٠١٠٠١٢٣٤٥٦٧",
+    "default_country": "EG",
+    "e164": "+201001234567",
+    "sha256": "9476e557c9e413deae474978709659f5b4f1c6a18553eddff8f042702843d0c7",
+    "note": "Arabic-Indic digits become ASCII"
+  },
+  {
+    "input": "۰۵۰۱۲۳۴۵۶۷",
+    "default_country": "SA",
+    "e164": "+966501234567",
+    "sha256": "90a38f9294c5ab0c10c460c72353df5b7d0bd03ca3c4a01809c0f6363705b84f",
+    "note": "Persian digits become ASCII"
+  },
+  {
+    "input": "201001234567",
+    "default_country": "EG",
+    "e164": "+201001234567",
+    "sha256": "9476e557c9e413deae474978709659f5b4f1c6a18553eddff8f042702843d0c7",
+    "note": "EG digits starting 20 without + count as international"
+  },
+  {
+    "input": "971501234567",
+    "default_country": "AE",
+    "e164": "+971501234567",
+    "sha256": "5cd602a57e6a0414e38023888d6275b31208be50ab5cf4c1e7f197138da7fed1",
+    "note": "AE digits starting 971 without + count as international"
+  },
+  {
     "input": "0501234567",
     "default_country": null,
     "e164": null,
