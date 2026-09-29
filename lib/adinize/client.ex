@@ -21,25 +21,41 @@ defmodule Adinize.Client do
          {:ok, body} <- encode(%{"events" => events}) do
       # Our options win, so req_options cannot move the key to another
       # host, drop the auth header or turn redirects back on.
-      req_options
-      |> Keyword.merge(
-        method: :post,
-        base_url: base_url,
-        url: "/api/server/v1/events",
-        body: body,
-        headers: [
-          {"content-type", "application/json"},
-          {"accept", "application/json"},
-          {"authorization", "Bearer " <> key}
-        ],
-        receive_timeout: timeout,
-        retry: false,
-        redirect: false,
-        decode_body: false
-      )
-      |> request()
-      |> handle()
+      request_options =
+        Keyword.merge(req_options,
+          method: :post,
+          base_url: base_url,
+          url: "/api/server/v1/events",
+          body: body,
+          headers: [
+            {"content-type", "application/json"},
+            {"accept", "application/json"},
+            {"authorization", "Bearer " <> key}
+          ],
+          receive_timeout: timeout,
+          retry: false,
+          redirect: false,
+          decode_body: false
+        )
+
+      span(length(events), fn -> request(request_options) |> handle() end)
     end
+  end
+
+  # Every send goes through here, so this is the one place that emits
+  # [:adinize, :request, :start | :stop | :exception] — for track/2,
+  # track_many/2, track_async/2's flush and the retry policy alike.
+  # Metadata never holds the secret key, the request body or the response.
+  defp span(event_count, fun) do
+    :telemetry.span([:adinize, :request], %{event_count: event_count}, fn ->
+      case fun.() do
+        {:ok, _results} = ok ->
+          {ok, %{event_count: event_count, status: :ok}}
+
+        {:error, error} = err ->
+          {err, %{event_count: event_count, status: :error, error_code: error.code}}
+      end
+    end)
   end
 
   # The body is decoded here, not by Req, so a response that is not JSON
