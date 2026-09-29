@@ -176,6 +176,72 @@ defmodule AdinizeTest do
     end
   end
 
+  describe "a request the SDK refuses to send" do
+    test "no secret_key is MISSING_SECRET_KEY" do
+      respond(200, Stub.accepted("o1"))
+
+      assert {:error, %Adinize.Error{code: "MISSING_SECRET_KEY"}} =
+               Adinize.track("Purchase", req_options: [plug: {Req.Test, __MODULE__}])
+
+      refute_received {:request, _, _}
+    end
+
+    for {label, opts} <- [
+          {"unknown event option", [evnt_id: "x"]},
+          {"unknown user field", [user: [phone_number: "+201001234567"]]},
+          {"non-string email", [user: [email: 123]]},
+          {"phone with invalid UTF-8", [user: [phone: <<255, ?1>>]]},
+          {"bad precomputed hash", [user: [email_hash: "ABC"]]},
+          {"consent not a keyword list", [user: [consent: [1]]]},
+          {"consent with an unknown key", [user: [consent: [ads: true]]]},
+          {"user not a list", [user: "jane"]},
+          {"empty event_id", [event_id: ""]},
+          {"event_time as text", [event_time: "yesterday"]},
+          {"page_url not a string", [page_url: URI.parse("https://s/")]},
+          {"data not a list", [data: "x"]},
+          {"data with a tuple key", [data: %{{1, 2} => 1}]},
+          {"data JSON cannot encode", [data: [value: {1, 2}]]},
+          {"http base_url", [base_url: "http://adinize.ai"]},
+          {"negative receive_timeout", [receive_timeout: -1]},
+          {"secret_key not a string", [secret_key: 42]},
+          {"req_options an atom", [req_options: :x]},
+          {"req_options unknown key", [req_options: [bogus: 1]]},
+          {"req_options moving the base_url", [req_options: [base_url: "http://evil.example"]]},
+          {"req_options replacing headers", [req_options: [headers: [x: "y"]]]}
+        ] do
+      test "INVALID_OPTION, nothing sent: #{label}" do
+        respond(200, Stub.accepted("o1"))
+
+        assert {:error, %Adinize.Error{code: "INVALID_OPTION"}} =
+                 track(unquote(Macro.escape(opts)))
+
+        refute_received {:request, _, _}
+      end
+    end
+
+    test "options that are not a keyword list" do
+      assert {:error, %Adinize.Error{code: "INVALID_OPTION"}} = Adinize.track("x", [:a])
+      assert {:error, %Adinize.Error{code: "INVALID_OPTION"}} = Adinize.track("x", "a")
+    end
+
+    test "an event name that is not a string" do
+      assert {:error, %Adinize.Error{code: "INVALID_OPTION"}} =
+               Adinize.track(:purchase, Stub.opts(__MODULE__))
+    end
+
+    test "the message names the field, never the value" do
+      {:error, error} = track(page_url: URI.parse("https://s/?email=jane@example.com"))
+      refute Exception.message(error) =~ "jane"
+      {:error, error} = track(user: [email: {:jane, "jane@example.com"}])
+      refute Exception.message(error) =~ "jane@"
+    end
+
+    test "a bad req_options never puts the key in a crash" do
+      {:error, error} = track(req_options: :x)
+      refute inspect(error, limit: :infinity) =~ @key
+    end
+  end
+
   describe "no response" do
     test "a timeout is TIMEOUT" do
       Req.Test.stub(__MODULE__, &Req.Test.transport_error(&1, :timeout))

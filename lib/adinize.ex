@@ -20,17 +20,30 @@ defmodule Adinize do
   alias Adinize.{Client, Error, Event, Result}
 
   @spec track(String.t(), keyword()) :: {:ok, Result.t()} | {:error, Error.t()}
-  def track(event_name, opts \\ []) do
-    {client_opts, event_opts} = Keyword.split(opts, Client.client_keys())
-    {:ok, event} = Event.build(event_name, event_opts, nil)
+  def track(event_name, opts \\ [])
 
-    with {:ok, [json]} <- Client.post_events([event], client_opts) do
-      case Result.from_json(json) do
-        {:ok, result} -> {:ok, result}
-        :error -> invalid_response()
+  def track(event_name, opts) when is_list(opts) do
+    if Keyword.keyword?(opts) do
+      {client_opts, event_opts} = Keyword.split(opts, Client.client_keys())
+
+      with {:ok, event} <- Event.build(event_name, event_opts, nil),
+           {:ok, [json]} <- Client.post_events([event], client_opts) do
+        case Result.from_json(json) do
+          {:ok, result} -> {:ok, result}
+          :error -> invalid_response()
+        end
+      else
+        {:ok, _other} -> invalid_response()
+        error -> error
       end
+    else
+      invalid("options must be a keyword list")
     end
   end
+
+  def track(_event_name, _opts), do: invalid("options must be a keyword list")
+
+  defp invalid(message), do: {:error, %Error{code: "INVALID_OPTION", message: message}}
 
   defp invalid_response,
     do:

@@ -14,21 +14,86 @@ defmodule Adinize.Client do
 
   @spec post_events([map()], keyword()) :: {:ok, [map()]} | {:error, Error.t()}
   def post_events(events, opts) do
-    key = config(opts, :secret_key, nil)
+    with {:ok, req_options} <- req_options(opts),
+         {:ok, key} <- secret_key(opts),
+         {:ok, base_url} <- base_url(opts),
+         {:ok, timeout} <- receive_timeout(opts),
+         {:ok, body} <- encode(%{"events" => events}) do
+      # Our options win, so req_options cannot move the key to another
+      # host, drop the auth header or turn redirects back on.
+      req_options
+      |> Keyword.merge(
+        method: :post,
+        base_url: base_url,
+        url: "/api/server/v1/events",
+        body: body,
+        headers: [
+          {"content-type", "application/json"},
+          {"accept", "application/json"},
+          {"authorization", "Bearer " <> key}
+        ],
+        receive_timeout: timeout,
+        retry: false,
+        redirect: false
+      )
+      |> request()
+      |> handle()
+    end
+  end
 
-    Keyword.merge(config(opts, :req_options, []),
-      method: :post,
-      base_url: config(opts, :base_url, @default_base_url),
-      url: "/api/server/v1/events",
-      json: %{"events" => events},
-      headers: [{"accept", "application/json"}, {"authorization", "Bearer " <> key}],
-      receive_timeout: config(opts, :receive_timeout, @default_receive_timeout),
-      retry: false,
-      redirect: false
-    )
-    |> Req.new()
-    |> Req.request()
-    |> handle()
+  defp request(options) do
+    options |> Req.new() |> Req.request()
+  rescue
+    exception -> {:error, exception}
+  end
+
+  @allowed_req_options [:plug, :adapter, :connect_options, :finch, :inet6]
+
+  defp req_options(opts) do
+    value = config(opts, :req_options, [])
+
+    if is_list(value) and Keyword.keyword?(value) and
+         Keyword.keys(value) -- @allowed_req_options == [],
+       do: {:ok, value},
+       else: invalid("req_options takes only #{inspect(@allowed_req_options)}")
+  end
+
+  defp secret_key(opts) do
+    case config(opts, :secret_key, nil) do
+      key when is_binary(key) and key != "" ->
+        {:ok, key}
+
+      nil ->
+        error(nil, "MISSING_SECRET_KEY", "set :secret_key in config :adinize or pass it")
+
+      _ ->
+        invalid("secret_key must be a string")
+    end
+  end
+
+  # http only for a local server, so a typo cannot send the key in clear.
+  defp base_url(opts) do
+    url = config(opts, :base_url, @default_base_url)
+
+    case is_binary(url) && URI.parse(url) do
+      %URI{scheme: "https", host: host} when is_binary(host) and host != "" -> {:ok, url}
+      %URI{scheme: "http", host: host} when host in ["localhost", "127.0.0.1"] -> {:ok, url}
+      _ -> invalid("base_url must be an https URL")
+    end
+  end
+
+  defp receive_timeout(opts) do
+    case config(opts, :receive_timeout, @default_receive_timeout) do
+      ms when is_integer(ms) and ms > 0 -> {:ok, ms}
+      _ -> invalid("receive_timeout must be a positive integer")
+    end
+  end
+
+  defp encode(body) do
+    case Jason.encode(body) do
+      {:ok, json} -> {:ok, json}
+      {:error, _reason} -> invalid("data holds a value JSON cannot encode")
+    end
   end
 
   defp handle({:ok, %Req.Response{status: 200, body: %{"results" => results}}})
@@ -88,6 +153,8 @@ defmodule Adinize.Client do
 
   defp config(opts, key, default),
     do: Keyword.get_lazy(opts, key, fn -> Application.get_env(:adinize, key, default) end)
+
+  defp invalid(message), do: error(nil, "INVALID_OPTION", message)
 
   defp error(status, code, message),
     do: {:error, %Error{status: status, code: code, message: message}}
