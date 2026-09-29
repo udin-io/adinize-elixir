@@ -36,14 +36,18 @@ Adinize.track("Purchase",
 ```
 
 - `email`, `phone`, `first_name`, `last_name` and `street_address` are
-  hashed before sending. `data:` goes as given, so an `email` or `phone`
-  key there is refused.
+  hashed before sending. `data:` goes as given, so any key in it, at any
+  depth, named `*email*`, `*phone*`, `first_name`, `last_name` or
+  `street_address` is refused with the key's path.
+- `page_url` goes without its query string, which can hold an email or a
+  token. Pass `query_string: true` to keep it.
 - `event_id` defaults to a UUIDv4 and `event_time` to now. Send your order
   number as `event_id` so a retry never counts twice: the server answers
   `:duplicate` for an `event_id` it already holds.
 - Phones become E.164 before hashing. A local number takes
   `default_country`'s code; one without a `+`, a `00` prefix or a default
-  country is left out.
+  country is left out. Arabic-Indic digits work, and for EG, SA, AE, GB and
+  JO a `0` written after the country code is dropped.
 - `Adinize.track_many/2` sends up to 100 events in one request.
 
 From a Phoenix controller, add the visitor cookie, Meta's cookies, the IP
