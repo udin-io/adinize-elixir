@@ -50,6 +50,32 @@ defmodule AdinizeTest do
       refute raw =~ @key
     end
 
+    test "no personal field leaves in plain text, in any form" do
+      respond(200, Stub.accepted("o1"))
+
+      track(
+        default_country: "EG",
+        user: [
+          email: "Jane.Doe@Example.com",
+          phone: "0100 123 4567",
+          first_name: "Janeth",
+          last_name: "Qassem",
+          street_address: "17 Tahrir Square"
+        ]
+      )
+
+      assert_received {:request, _conn, raw}
+
+      for plain <- ~w(jane Janeth janeth Qassem qassem Tahrir tahrir 1001234567 1234567) do
+        refute raw =~ plain, "the body holds #{plain}"
+      end
+
+      %{"events" => [event]} = Jason.decode!(raw)
+
+      assert Map.keys(event["user_data"]) |> Enum.sort() ==
+               ~w(email_hash first_name_hash last_name_hash phone_hash street_address_hash)
+    end
+
     test "defaults event_id to a UUIDv4 and event_time to now, in Unix seconds" do
       respond(200, Stub.accepted("x"))
       track()
