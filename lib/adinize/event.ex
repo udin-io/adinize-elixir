@@ -123,9 +123,18 @@ defmodule Adinize.Event do
 
   defp event_data(data) when is_list(data) or is_map(data) do
     if (is_map(data) or Keyword.keyword?(data)) and
-         Enum.all?(data, fn {k, _v} -> is_atom(k) or is_binary(k) end),
-       do: {:ok, Map.new(data, fn {k, v} -> {to_string(k), v} end)},
-       else: invalid("data must be a keyword list or a map with string keys")
+         Enum.all?(data, fn {k, _v} -> is_atom(k) or is_binary(k) end) do
+      data = Map.new(data, fn {k, v} -> {to_string(k), v} end)
+
+      # event_data is sent as given, so personal data here would leave in
+      # plain text. Send it under `user:`, which hashes it.
+      case Enum.find(Map.keys(data), &(String.downcase(&1) in ["email", "phone"])) do
+        nil -> {:ok, data}
+        key -> invalid("data must not hold #{key}; pass it under user: so it is hashed")
+      end
+    else
+      invalid("data must be a keyword list or a map with string keys")
+    end
   end
 
   defp event_data(_data), do: invalid("data must be a keyword list or map")

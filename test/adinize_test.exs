@@ -244,6 +244,19 @@ defmodule AdinizeTest do
       end
     end
 
+    for key <- [:email, "phone", "Email"] do
+      test "INVALID_OPTION naming the key, nothing sent: data holds #{inspect(key)}" do
+        respond(200, Stub.accepted("o1"))
+
+        assert {:error, %Adinize.Error{code: "INVALID_OPTION", message: message}} =
+                 track(data: %{unquote(key) => "jane@example.com", "value" => 1})
+
+        assert message =~ to_string(unquote(key))
+        refute message =~ "jane"
+        refute_received {:request, _, _}
+      end
+    end
+
     test "options that are not a keyword list" do
       assert {:error, %Adinize.Error{code: "INVALID_OPTION"}} = Adinize.track("x", [:a])
       assert {:error, %Adinize.Error{code: "INVALID_OPTION"}} = Adinize.track("x", "a")
