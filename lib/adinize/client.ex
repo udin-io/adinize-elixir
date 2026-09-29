@@ -38,8 +38,53 @@ defmodule Adinize.Client do
   defp handle({:ok, %Req.Response{status: 200}}),
     do: error(200, "INVALID_RESPONSE", "the 200 response carried no results list")
 
-  defp handle({:ok, %Req.Response{status: status}}),
-    do: error(status, "HTTP_ERROR", "the API answered HTTP #{status}")
+  defp handle({:ok, %Req.Response{status: status} = response}) do
+    case response.body do
+      %{"error" => %{"code" => code} = err} when is_binary(code) and status != 200 ->
+        {:error,
+         %Error{
+           status: status,
+           code: code,
+           message: if(is_binary(err["message"]), do: err["message"], else: ""),
+           retry_after: retry_after(response, err)
+         }}
+
+      _ ->
+        error(status, "HTTP_ERROR", "the API answered HTTP #{status}")
+    end
+  end
+
+  defp handle({:error, %Req.TransportError{reason: :timeout}}),
+    do: {:error, %Error{code: "TIMEOUT", message: "no response in time", reason: :timeout}}
+
+  defp handle({:error, %Req.TransportError{reason: reason}}) when is_atom(reason),
+    do:
+      {:error,
+       %Error{code: "TRANSPORT_ERROR", message: "connection failed: #{reason}", reason: reason}}
+
+  # Any other exception may hold the request, and so the key. Keep only its
+  # module name.
+  defp handle({:error, exception}),
+    do:
+      {:error,
+       %Error{
+         code: "TRANSPORT_ERROR",
+         message: "request failed: #{inspect(exception.__struct__)}"
+       }}
+
+  defp retry_after(response, err) do
+    header =
+      case Req.Response.get_header(response, "retry-after") do
+        [value | _] -> Integer.parse(value)
+        [] -> :error
+      end
+
+    case {header, err["retry_after"]} do
+      {{seconds, ""}, _} -> seconds
+      {_, seconds} when is_integer(seconds) -> seconds
+      _ -> nil
+    end
+  end
 
   defp config(opts, key, default),
     do: Keyword.get_lazy(opts, key, fn -> Application.get_env(:adinize, key, default) end)

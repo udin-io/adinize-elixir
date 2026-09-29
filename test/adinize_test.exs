@@ -127,4 +127,77 @@ defmodule AdinizeTest do
       assert {:error, %Adinize.Error{status: 200, code: "INVALID_RESPONSE"}} = track()
     end
   end
+
+  describe "a refused request" do
+    defp error_body(code, extra \\ %{}),
+      do: %{"error" => Map.merge(%{"code" => code, "message" => "why"}, extra)}
+
+    test "202 is not the documented success" do
+      respond(202, Stub.accepted("o1"))
+      assert {:error, %Adinize.Error{status: 202, code: "HTTP_ERROR"}} = track()
+    end
+
+    for {status, code} <- [
+          {400, "INVALID_REQUEST"},
+          {401, "INVALID_KEY"},
+          {403, "PIXEL_INACTIVE"},
+          {409, "CONFLICT"},
+          {422, "UNPROCESSABLE"}
+        ] do
+      test "#{status} returns the server's code #{code}" do
+        respond(unquote(status), error_body(unquote(code)))
+
+        assert {:error,
+                %Adinize.Error{status: unquote(status), code: unquote(code), message: "why"}} =
+                 track()
+      end
+    end
+
+    test "429 carries Retry-After in seconds" do
+      respond(429, error_body("RATE_LIMITED", %{"retry_after" => 12}), [{"retry-after", "12"}])
+
+      assert {:error, %Adinize.Error{status: 429, code: "RATE_LIMITED", retry_after: 12}} =
+               track()
+    end
+
+    test "429 without the header falls back to the body's retry_after" do
+      respond(429, error_body("RATE_LIMITED", %{"retry_after" => 7}))
+      assert {:error, %Adinize.Error{retry_after: 7}} = track()
+    end
+
+    test "a 502 HTML page is HTTP_ERROR" do
+      respond(502, {:text, "<html>bad gateway</html>"})
+      assert {:error, %Adinize.Error{status: 502, code: "HTTP_ERROR"}} = track()
+    end
+
+    test "an error body whose message is not a string" do
+      respond(400, %{"error" => %{"code" => "X", "message" => %{"a" => 1}}})
+      assert {:error, %Adinize.Error{status: 400, code: "X", message: ""}} = track()
+    end
+  end
+
+  describe "no response" do
+    test "a timeout is TIMEOUT" do
+      Req.Test.stub(__MODULE__, &Req.Test.transport_error(&1, :timeout))
+      assert {:error, %Adinize.Error{status: nil, code: "TIMEOUT", reason: :timeout}} = track()
+    end
+
+    test "a refused connection is TRANSPORT_ERROR" do
+      Req.Test.stub(__MODULE__, &Req.Test.transport_error(&1, :econnrefused))
+
+      assert {:error, %Adinize.Error{code: "TRANSPORT_ERROR", reason: :econnrefused}} = track()
+    end
+
+    test "a refused connection on a real socket is TRANSPORT_ERROR" do
+      assert {:error, %Adinize.Error{code: "TRANSPORT_ERROR", reason: :econnrefused}} =
+               Adinize.track("Purchase", secret_key: @key, base_url: "http://localhost:1")
+    end
+
+    test "the error never holds the secret key" do
+      Req.Test.stub(__MODULE__, &Req.Test.transport_error(&1, :timeout))
+      {:error, error} = track()
+      refute inspect(error, limit: :infinity) =~ @key
+      refute Exception.message(error) =~ @key
+    end
+  end
 end
