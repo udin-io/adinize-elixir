@@ -72,14 +72,14 @@ defmodule Adinize.Event do
 
     with :ok <- known_keys(user, @user_keys, "user field") do
       Enum.reduce_while(user, {:ok, %{}}, fn {key, value}, {:ok, acc} ->
-        case user_field(key, value, default_country) do
-          {:ok, nil} -> {:cont, {:ok, acc}}
-          {:ok, {name, v}} -> {:cont, {:ok, Map.put(acc, name, v)}}
-          {:error, _} = error -> {:halt, error}
-        end
+        put_user_field(acc, user_field(key, value, default_country))
       end)
     end
   end
+
+  defp put_user_field(acc, {:ok, nil}), do: {:cont, {:ok, acc}}
+  defp put_user_field(acc, {:ok, {name, value}}), do: {:cont, {:ok, Map.put(acc, name, value)}}
+  defp put_user_field(_acc, {:error, _} = error), do: {:halt, error}
 
   defp user_data(_user, _default_country), do: invalid("user must be a keyword list or map")
 
