@@ -14,6 +14,11 @@ defmodule Adinize.Hash do
   @spec email(String.t() | nil) :: String.t() | nil
   def email(value), do: value |> text() |> sha256()
 
+  @doc "Hashes the E.164 form of `value`; `nil` when it has none. See `Adinize.Phone`."
+  @spec phone(String.t() | nil, String.t() | nil) :: String.t() | nil
+  def phone(value, default_country \\ nil),
+    do: value |> Adinize.Phone.e164(default_country) |> sha256()
+
   @spec name(String.t() | nil) :: String.t() | nil
   def name(value), do: value |> text() |> sha256()
 
