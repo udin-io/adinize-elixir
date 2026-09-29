@@ -25,8 +25,10 @@ defmodule Adinize do
   def track(event_name, opts) when is_list(opts) do
     if Keyword.keyword?(opts) do
       {client_opts, event_opts} = Keyword.split(opts, Client.client_keys())
+      {country, event_opts} = Keyword.pop(event_opts, :default_country)
 
-      with {:ok, event} <- Event.build(event_name, event_opts, nil),
+      with {:ok, country} <- default_country(country),
+           {:ok, event} <- Event.build(event_name, event_opts, country),
            {:ok, [json]} <- Client.post_events([event], client_opts) do
         case Result.from_json(json) do
           {:ok, result} -> {:ok, result}
@@ -42,6 +44,20 @@ defmodule Adinize do
   end
 
   def track(_event_name, _opts), do: invalid("options must be a keyword list")
+
+  defp default_country(nil) do
+    case Application.get_env(:adinize, :default_country) do
+      nil -> {:ok, nil}
+      country -> default_country(country)
+    end
+  end
+
+  defp default_country(country) do
+    case Adinize.Phone.country_code(country) do
+      {:ok, _code} -> {:ok, country}
+      :error -> invalid("default_country must be one of #{Adinize.Phone.countries()}")
+    end
+  end
 
   defp invalid(message), do: {:error, %Error{code: "INVALID_OPTION", message: message}}
 

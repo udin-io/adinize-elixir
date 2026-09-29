@@ -1,4 +1,18 @@
 defmodule Adinize.Phone do
+  # ISO 3166 alpha-2 => {calling code, trunk prefix}
+  @countries %{
+    "AE" => {"971", "0"},
+    "BH" => {"973", nil},
+    "EG" => {"20", "0"},
+    "GB" => {"44", "0"},
+    "JO" => {"962", "0"},
+    "KW" => {"965", nil},
+    "OM" => {"968", nil},
+    "QA" => {"974", nil},
+    "SA" => {"966", "0"},
+    "US" => {"1", "1"}
+  }
+
   @moduledoc """
   Turns a phone number into E.164 (`+` and 7 to 15 digits), the form TikTok
   and Google hash, and the browser pixel hashes.
@@ -14,23 +28,12 @@ defmodule Adinize.Phone do
   number drops its trunk prefix and gains the default country's code; with
   no default country it has no E.164 form. There is no US fallback.
 
-  Default countries: #{Enum.join(~w(AE BH EG GB JO KW OM QA SA US), ", ")}.
+  Default countries: #{@countries |> Map.keys() |> Enum.sort() |> Enum.join(", ")}.
   A number with a `+` works for any country.
   """
 
-  # ISO 3166 alpha-2 => {calling code, trunk prefix}
-  @countries %{
-    "AE" => {"971", "0"},
-    "BH" => {"973", nil},
-    "EG" => {"20", "0"},
-    "GB" => {"44", "0"},
-    "JO" => {"962", "0"},
-    "KW" => {"965", nil},
-    "OM" => {"968", nil},
-    "QA" => {"974", nil},
-    "SA" => {"966", "0"},
-    "US" => {"1", "1"}
-  }
+  @doc false
+  def countries, do: @countries |> Map.keys() |> Enum.sort() |> Enum.join(", ")
 
   @doc "The calling code for an ISO 3166 alpha-2 country, if the SDK knows it."
   @spec country_code(String.t()) :: {:ok, String.t()} | :error

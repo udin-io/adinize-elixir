@@ -90,6 +90,31 @@ defmodule AdinizeTest do
     end
   end
 
+  describe "default_country" do
+    test "turns a local phone into E.164 before hashing" do
+      respond(200, Stub.accepted("x"))
+      track(user: [phone: "010 0123 4567"], default_country: "EG")
+
+      assert sent_event()["user_data"]["phone_hash"] ==
+               "9476e557c9e413deae474978709659f5b4f1c6a18553eddff8f042702843d0c7"
+    end
+
+    test "leaves a + number's own code alone" do
+      respond(200, Stub.accepted("x"))
+      track(user: [phone: "+966 50 123 4567"], default_country: "EG")
+      assert sent_event()["user_data"]["phone_hash"] == Adinize.Hash.phone("+966501234567")
+    end
+
+    test "an unknown country is INVALID_OPTION and nothing is sent" do
+      respond(200, Stub.accepted("x"))
+
+      assert {:error, %Adinize.Error{code: "INVALID_OPTION"}} =
+               track(user: [phone: "0501234567"], default_country: "ZZ")
+
+      refute_received {:request, _, _}
+    end
+  end
+
   describe "a 200 answer" do
     test "accepted" do
       respond(200, Stub.accepted("o1"))
