@@ -77,11 +77,11 @@ defmodule Adinize.Event do
     end
   end
 
+  defp user_data(_user, _default_country), do: invalid("user must be a keyword list or map")
+
   defp put_user_field(acc, {:ok, nil}), do: {:cont, {:ok, acc}}
   defp put_user_field(acc, {:ok, {name, value}}), do: {:cont, {:ok, Map.put(acc, name, value)}}
   defp put_user_field(_acc, {:error, _} = error), do: {:halt, error}
-
-  defp user_data(_user, _default_country), do: invalid("user must be a keyword list or map")
 
   defp user_field(_key, nil, _default_country), do: {:ok, nil}
 
