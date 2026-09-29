@@ -52,6 +52,29 @@ defmodule Adinize.TrackManyTest do
              Adinize.track_many([{"Lead", []}, {"Lead", []}], opts())
   end
 
+  test "a rejected result fires [:adinize, :event, :rejected] with the server's own field/code/message" do
+    ref = :telemetry_test.attach_event_handlers(self(), [[:adinize, :event, :rejected]])
+
+    Stub.respond(__MODULE__, 200, %{
+      "results" => [
+        %{
+          "event_id" => "r1",
+          "status" => "rejected",
+          "errors" => [
+            %{"field" => "event_id", "code" => "DUPLICATE", "message" => "seen before"}
+          ]
+        }
+      ]
+    })
+
+    assert {:ok, [%Adinize.Result{event_id: "r1", status: :rejected}]} =
+             Adinize.track_many([{"Lead", [event_id: "r1"]}], opts())
+
+    assert_receive {[:adinize, :event, :rejected], ^ref, %{count: 1},
+                    %{event_id: "r1", event_name: "Lead", field: "event_id", code: "DUPLICATE"}},
+                   1_000
+  end
+
   for {label, events, extra} <- [
         {"an empty list", [], []},
         {"an improper list", [{"Lead", []} | :x], []},
