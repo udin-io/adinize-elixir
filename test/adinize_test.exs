@@ -195,6 +195,21 @@ defmodule AdinizeTest do
       assert {:error, %Adinize.Error{status: 502, code: "HTTP_ERROR"}} = track()
     end
 
+    test "a 200 whose JSON body does not parse is INVALID_RESPONSE" do
+      respond(200, {:json_text, "{not json"})
+      assert {:error, %Adinize.Error{status: 200, code: "INVALID_RESPONSE"}} = track()
+    end
+
+    test "a 500 whose JSON body does not parse is HTTP_ERROR with its status" do
+      respond(500, {:json_text, "{not json"})
+      assert {:error, %Adinize.Error{status: 500, code: "HTTP_ERROR"}} = track()
+    end
+
+    test "a negative Retry-After is dropped" do
+      respond(429, error_body("RATE_LIMITED"), [{"retry-after", "-5"}])
+      assert {:error, %Adinize.Error{status: 429, retry_after: nil}} = track()
+    end
+
     test "an error body whose message is not a string" do
       respond(400, %{"error" => %{"code" => "X", "message" => %{"a" => 1}}})
       assert {:error, %Adinize.Error{status: 400, code: "X", message: ""}} = track()
@@ -295,6 +310,21 @@ defmodule AdinizeTest do
     test "a refused connection on a real socket is TRANSPORT_ERROR" do
       assert {:error, %Adinize.Error{code: "TRANSPORT_ERROR", reason: :econnrefused}} =
                Adinize.track("Purchase", secret_key: @key, base_url: "http://localhost:1")
+    end
+
+    test "an exception carrying the auth header never reaches the error" do
+      respond(200, {:raise, RuntimeError.exception("bad header: Bearer " <> @key)})
+      {:error, error} = track()
+      assert error.code == "TRANSPORT_ERROR"
+      refute inspect(error, limit: :infinity) =~ @key
+      refute Exception.message(error) =~ @key
+    end
+
+    test "an exit inside the HTTP client is TRANSPORT_ERROR" do
+      respond(200, {:exit, {:shutdown, "Bearer " <> @key}})
+      {:error, error} = track()
+      assert error.code == "TRANSPORT_ERROR"
+      refute inspect(error, limit: :infinity) =~ @key
     end
 
     test "the error never holds the secret key" do

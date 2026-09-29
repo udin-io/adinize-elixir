@@ -19,8 +19,22 @@ defmodule Adinize.Test.Stub do
         |> Plug.Conn.put_status(status)
 
       case body do
-        {:text, text} -> Req.Test.text(conn, text)
-        json -> Req.Test.json(conn, json)
+        {:text, text} ->
+          Req.Test.text(conn, text)
+
+        {:json_text, text} ->
+          conn
+          |> Plug.Conn.put_resp_content_type("application/json")
+          |> Plug.Conn.send_resp(conn.status, text)
+
+        {:raise, exception} ->
+          raise exception
+
+        {:exit, reason} ->
+          exit(reason)
+
+        json ->
+          Req.Test.json(conn, json)
       end
     end)
   end

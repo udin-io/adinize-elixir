@@ -34,18 +34,35 @@ defmodule Adinize.Client do
         ],
         receive_timeout: timeout,
         retry: false,
-        redirect: false
+        redirect: false,
+        decode_body: false
       )
       |> request()
       |> handle()
     end
   end
 
+  # The body is decoded here, not by Req, so a response that is not JSON
+  # keeps its status instead of surfacing as a decode exception.
   defp request(options) do
-    options |> Req.new() |> Req.request()
+    case options |> Req.new() |> Req.request() do
+      {:ok, response} -> {:ok, %{response | body: decode(response.body)}}
+      error -> error
+    end
   rescue
     exception -> {:error, exception}
+  catch
+    :exit, _reason -> {:error, :exit}
   end
+
+  defp decode(body) when is_binary(body) do
+    case Jason.decode(body) do
+      {:ok, decoded} -> decoded
+      {:error, _} -> body
+    end
+  end
+
+  defp decode(body), do: body
 
   @allowed_req_options [:plug, :adapter, :connect_options, :finch, :inet6]
 
@@ -127,15 +144,13 @@ defmodule Adinize.Client do
       {:error,
        %Error{code: "TRANSPORT_ERROR", message: "connection failed: #{reason}", reason: reason}}
 
+  defp handle({:error, :exit}),
+    do: {:error, %Error{code: "TRANSPORT_ERROR", message: "the HTTP client exited"}}
+
   # Any other exception may hold the request, and so the key. Keep only its
   # module name.
-  defp handle({:error, exception}),
-    do:
-      {:error,
-       %Error{
-         code: "TRANSPORT_ERROR",
-         message: "request failed: #{inspect(exception.__struct__)}"
-       }}
+  defp handle({:error, %module{}}),
+    do: {:error, %Error{code: "TRANSPORT_ERROR", message: "request failed: #{inspect(module)}"}}
 
   defp retry_after(response, err) do
     header =
@@ -145,8 +160,8 @@ defmodule Adinize.Client do
       end
 
     case {header, err["retry_after"]} do
-      {{seconds, ""}, _} -> seconds
-      {_, seconds} when is_integer(seconds) -> seconds
+      {{seconds, ""}, _} when seconds >= 0 -> seconds
+      {_, seconds} when is_integer(seconds) and seconds >= 0 -> seconds
       _ -> nil
     end
   end
