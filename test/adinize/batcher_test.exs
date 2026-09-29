@@ -310,4 +310,44 @@ defmodule Adinize.BatcherTest do
     assert_received {:request, _conn, raw}
     assert %{"events" => [%{"event_id" => "held"}]} = Jason.decode!(raw)
   end
+
+  test "shutdown logs one warning naming the dropped count, with no event data" do
+    name = :"batcher_#{__ENV__.line}"
+    secret = "adzsk_shutdown_no_leak_#{System.unique_integer([:positive])}"
+
+    {:ok, _pid} =
+      Adinize.Batcher.start_link(
+        opts(name, flush_interval: 60_000, shutdown: 100, secret_key: secret)
+      )
+
+    # Never responds, so the drain's one attempt cannot finish before the
+    # tiny :shutdown budget elapses — this event is dropped.
+    Req.Test.stub(name, fn _conn -> Process.sleep(:infinity) end)
+
+    assert :ok = Adinize.Batcher.enqueue(name, "Lead", event_id: "shutdown_drop_1")
+
+    log =
+      ExUnit.CaptureLog.capture_log(fn ->
+        Supervisor.stop(Module.concat(name, :Supervisor))
+      end)
+
+    assert log =~ "dropped 1 event"
+    refute log =~ "shutdown_drop_1"
+    refute log =~ secret
+  end
+
+  test "a clean shutdown (nothing dropped) logs no warning" do
+    name = :"batcher_#{__ENV__.line}"
+    {:ok, _pid} = Adinize.Batcher.start_link(opts(name, flush_interval: 60_000))
+    Stub.respond(name, 200, Stub.accepted("clean"))
+
+    assert :ok = Adinize.Batcher.enqueue(name, "Lead", event_id: "clean")
+
+    log =
+      ExUnit.CaptureLog.capture_log(fn ->
+        Supervisor.stop(Module.concat(name, :Supervisor))
+      end)
+
+    refute log =~ "Adinize.Batcher shutdown dropped"
+  end
 end

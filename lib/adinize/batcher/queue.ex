@@ -108,8 +108,15 @@ defmodule Adinize.Batcher.Queue do
   @impl true
   def terminate(_reason, state) do
     if state.timer_ref, do: Process.cancel_timer(state.timer_ref)
-    drain(state)
-    :ok
+
+    case drain(state) do
+      0 ->
+        :ok
+
+      dropped ->
+        Logger.warning("Adinize.Batcher shutdown dropped #{dropped} event(s)")
+        :ok
+    end
   end
 
   # --- flushing -----------------------------------------------------------
@@ -222,6 +229,8 @@ defmodule Adinize.Batcher.Queue do
         _ok_accepted_duplicate_or_unparsable -> :ok
       end
     end)
+
+    0
   end
 
   defp report_results(results, chunk) do
@@ -251,7 +260,8 @@ defmodule Adinize.Batcher.Queue do
 
   # Best effort: one attempt per remaining chunk, no retries — retrying
   # would blow the shutdown budget. Whatever cannot be sent (or answered)
-  # before the deadline is dropped with telemetry.
+  # before the deadline is dropped with telemetry, and returns the total
+  # count dropped (never which events) for the caller to log once.
   defp drain(state) do
     deadline = System.monotonic_time(:millisecond) + state.shutdown
 
@@ -284,7 +294,7 @@ defmodule Adinize.Batcher.Queue do
   end
 
   defp await_in_flight(state, deadline) do
-    Enum.each(state.in_flight, fn {_ref, {task, chunk}} ->
+    Enum.reduce(state.in_flight, 0, fn {_ref, {task, chunk}}, dropped ->
       remaining = max(deadline - System.monotonic_time(:millisecond), 0)
 
       result =
@@ -294,17 +304,16 @@ defmodule Adinize.Batcher.Queue do
         end
 
       case result do
-        {:ok, {:ok, results}} -> report_results(results, chunk)
-        {:ok, {:error, error}} -> drop_chunk(chunk, drop_reason(error))
-        _killed_or_timed_out -> drop_chunk(chunk, :shutdown_timeout)
+        {:ok, {:ok, results}} -> dropped + report_results(results, chunk)
+        {:ok, {:error, error}} -> dropped + drop_chunk(chunk, drop_reason(error))
+        _killed_or_timed_out -> dropped + drop_chunk(chunk, :shutdown_timeout)
       end
     end)
-
-    state
   end
 
   defp drop_chunk(chunk, reason) do
     Enum.each(chunk, fn {event_name, body} -> Telemetry.dropped(body, event_name, reason) end)
+    length(chunk)
   end
 
   # --- config -----------------------------------------------------------
