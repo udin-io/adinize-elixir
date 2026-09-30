@@ -28,6 +28,12 @@ defmodule Adinize.HashTest do
     assert Hash.street_address(" 1 Nile St ") == Hash.street_address("1 nile st")
   end
 
+  test "phone_digits is nil for nil, blank and invalid UTF-8, and does not raise" do
+    assert Hash.phone_digits(nil) == nil
+    assert Hash.phone_digits("") == nil
+    assert Hash.phone_digits(<<255, ?1>>) == nil
+  end
+
   test "blank or missing input hashes to nil" do
     assert Hash.email("   ") == nil
     assert Hash.email(nil) == nil
