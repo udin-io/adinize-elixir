@@ -4,6 +4,7 @@
     "default_country": null,
     "e164": "+201001234567",
     "sha256": "9476e557c9e413deae474978709659f5b4f1c6a18553eddff8f042702843d0c7",
+    "digits_sha256": "6993ec5cc979510592725a267129b73cee2e99c29488027fe094dd24a9e1bfb3",
     "note": "EG, international form"
   },
   {
@@ -11,6 +12,7 @@
     "default_country": null,
     "e164": "+201001234567",
     "sha256": "9476e557c9e413deae474978709659f5b4f1c6a18553eddff8f042702843d0c7",
+    "digits_sha256": "6993ec5cc979510592725a267129b73cee2e99c29488027fe094dd24a9e1bfb3",
     "note": "EG, 00 prefix"
   },
   {
@@ -18,6 +20,7 @@
     "default_country": "EG",
     "e164": "+201001234567",
     "sha256": "9476e557c9e413deae474978709659f5b4f1c6a18553eddff8f042702843d0c7",
+    "digits_sha256": "6993ec5cc979510592725a267129b73cee2e99c29488027fe094dd24a9e1bfb3",
     "note": "EG local, trunk 0 dropped"
   },
   {
@@ -25,6 +28,7 @@
     "default_country": "EG",
     "e164": "+201001234567",
     "sha256": "9476e557c9e413deae474978709659f5b4f1c6a18553eddff8f042702843d0c7",
+    "digits_sha256": "6993ec5cc979510592725a267129b73cee2e99c29488027fe094dd24a9e1bfb3",
     "note": "EG local with dashes"
   },
   {
@@ -32,6 +36,7 @@
     "default_country": "SA",
     "e164": "+966501234567",
     "sha256": "90a38f9294c5ab0c10c460c72353df5b7d0bd03ca3c4a01809c0f6363705b84f",
+    "digits_sha256": "c1ff1911b731b76634191b2a4cfc6425fe23aaa559535e89701c1118d858687a",
     "note": "SA mobile, trunk 0 dropped"
   },
   {
@@ -39,6 +44,7 @@
     "default_country": null,
     "e164": "+966501234567",
     "sha256": "90a38f9294c5ab0c10c460c72353df5b7d0bd03ca3c4a01809c0f6363705b84f",
+    "digits_sha256": "c1ff1911b731b76634191b2a4cfc6425fe23aaa559535e89701c1118d858687a",
     "note": "SA international"
   },
   {
@@ -46,6 +52,7 @@
     "default_country": "AE",
     "e164": "+971501234567",
     "sha256": "5cd602a57e6a0414e38023888d6275b31208be50ab5cf4c1e7f197138da7fed1",
+    "digits_sha256": "b7a8f5085aa733eb29857a02945bc84a5227e693708d469ec9fb21d34e9e44f5",
     "note": "AE mobile, trunk 0 dropped"
   },
   {
@@ -53,6 +60,7 @@
     "default_country": "EG",
     "e164": "+971501234567",
     "sha256": "5cd602a57e6a0414e38023888d6275b31208be50ab5cf4c1e7f197138da7fed1",
+    "digits_sha256": "b7a8f5085aa733eb29857a02945bc84a5227e693708d469ec9fb21d34e9e44f5",
     "note": "00 prefix keeps its own code over the default"
   },
   {
@@ -60,6 +68,7 @@
     "default_country": "EG",
     "e164": "+447700900123",
     "sha256": "a8acc3a90a7b4e4dc65e93db9240ed26523050ef754d63b75b5161de76781436",
+    "digits_sha256": "033134b911b137918338415ee3d20a064b24773d36a3b02e8b99fdd3fcd6b4cd",
     "note": "GB number with a + keeps its own code"
   },
   {
@@ -67,6 +76,7 @@
     "default_country": null,
     "e164": "+16505551212",
     "sha256": "1e231c66011e7a2d867a9cfae267a6aff103cf4913640b6e71a99850fc0ffbc8",
+    "digits_sha256": "e323ec626319ca94ee8bff2e4c87cf613be6ea19919ed1364124e16807ab3176",
     "note": "US international form"
   },
   {
@@ -74,6 +84,7 @@
     "default_country": "US",
     "e164": "+16505551212",
     "sha256": "1e231c66011e7a2d867a9cfae267a6aff103cf4913640b6e71a99850fc0ffbc8",
+    "digits_sha256": "e323ec626319ca94ee8bff2e4c87cf613be6ea19919ed1364124e16807ab3176",
     "note": "US local, no trunk 0"
   },
   {
@@ -81,6 +92,7 @@
     "default_country": null,
     "e164": "+447700900123",
     "sha256": "a8acc3a90a7b4e4dc65e93db9240ed26523050ef754d63b75b5161de76781436",
+    "digits_sha256": "033134b911b137918338415ee3d20a064b24773d36a3b02e8b99fdd3fcd6b4cd",
     "note": "the (0) trunk hint after a country code is dropped"
   },
   {
@@ -88,6 +100,7 @@
     "default_country": "EG",
     "e164": "+201001234567",
     "sha256": "9476e557c9e413deae474978709659f5b4f1c6a18553eddff8f042702843d0c7",
+    "digits_sha256": "6993ec5cc979510592725a267129b73cee2e99c29488027fe094dd24a9e1bfb3",
     "note": "an extension after x is cut"
   },
   {
@@ -95,6 +108,7 @@
     "default_country": null,
     "e164": "+16505551212",
     "sha256": "1e231c66011e7a2d867a9cfae267a6aff103cf4913640b6e71a99850fc0ffbc8",
+    "digits_sha256": "e323ec626319ca94ee8bff2e4c87cf613be6ea19919ed1364124e16807ab3176",
     "note": "an extension after ext. is cut"
   },
   {
@@ -102,6 +116,7 @@
     "default_country": "EG",
     "e164": "+447700900123",
     "sha256": "a8acc3a90a7b4e4dc65e93db9240ed26523050ef754d63b75b5161de76781436",
+    "digits_sha256": "033134b911b137918338415ee3d20a064b24773d36a3b02e8b99fdd3fcd6b4cd",
     "note": "a + inside a bracket still marks an international number"
   },
   {
@@ -109,6 +124,7 @@
     "default_country": "EG",
     "e164": "+447700900123",
     "sha256": "a8acc3a90a7b4e4dc65e93db9240ed26523050ef754d63b75b5161de76781436",
+    "digits_sha256": "033134b911b137918338415ee3d20a064b24773d36a3b02e8b99fdd3fcd6b4cd",
     "note": "a fullwidth plus counts as +"
   },
   {
@@ -116,6 +132,7 @@
     "default_country": null,
     "e164": "+201001234567",
     "sha256": "9476e557c9e413deae474978709659f5b4f1c6a18553eddff8f042702843d0c7",
+    "digits_sha256": "6993ec5cc979510592725a267129b73cee2e99c29488027fe094dd24a9e1bfb3",
     "note": "a trunk 0 written after +20 is dropped"
   },
   {
@@ -123,6 +140,7 @@
     "default_country": null,
     "e164": "+201001234567",
     "sha256": "9476e557c9e413deae474978709659f5b4f1c6a18553eddff8f042702843d0c7",
+    "digits_sha256": "6993ec5cc979510592725a267129b73cee2e99c29488027fe094dd24a9e1bfb3",
     "note": "a trunk 0 written after 0020 is dropped"
   },
   {
@@ -130,6 +148,7 @@
     "default_country": "EG",
     "e164": "+966501234567",
     "sha256": "90a38f9294c5ab0c10c460c72353df5b7d0bd03ca3c4a01809c0f6363705b84f",
+    "digits_sha256": "c1ff1911b731b76634191b2a4cfc6425fe23aaa559535e89701c1118d858687a",
     "note": "a trunk 0 written after +966 is dropped"
   },
   {
@@ -137,6 +156,7 @@
     "default_country": null,
     "e164": "+971501234567",
     "sha256": "5cd602a57e6a0414e38023888d6275b31208be50ab5cf4c1e7f197138da7fed1",
+    "digits_sha256": "b7a8f5085aa733eb29857a02945bc84a5227e693708d469ec9fb21d34e9e44f5",
     "note": "a trunk 0 written after +971 is dropped"
   },
   {
@@ -144,6 +164,7 @@
     "default_country": null,
     "e164": "+390612345678",
     "sha256": "37b702607839d6dc5fc81d95b52e550e336413bf7ae2e04cafeca79f066ea44b",
+    "digits_sha256": "472e1123cd4e2f66f1df06bd488dc6135dab8f80cbfcc4af144d042c005f0fb2",
     "note": "Italy keeps its 0: only EG, SA, AE, GB and JO drop it"
   },
   {
@@ -151,6 +172,7 @@
     "default_country": "EG",
     "e164": "+201001234567",
     "sha256": "9476e557c9e413deae474978709659f5b4f1c6a18553eddff8f042702843d0c7",
+    "digits_sha256": "6993ec5cc979510592725a267129b73cee2e99c29488027fe094dd24a9e1bfb3",
     "note": "Arabic-Indic digits become ASCII"
   },
   {
@@ -158,6 +180,7 @@
     "default_country": "SA",
     "e164": "+966501234567",
     "sha256": "90a38f9294c5ab0c10c460c72353df5b7d0bd03ca3c4a01809c0f6363705b84f",
+    "digits_sha256": "c1ff1911b731b76634191b2a4cfc6425fe23aaa559535e89701c1118d858687a",
     "note": "Persian digits become ASCII"
   },
   {
@@ -165,6 +188,7 @@
     "default_country": "EG",
     "e164": "+201001234567",
     "sha256": "9476e557c9e413deae474978709659f5b4f1c6a18553eddff8f042702843d0c7",
+    "digits_sha256": "6993ec5cc979510592725a267129b73cee2e99c29488027fe094dd24a9e1bfb3",
     "note": "EG digits starting 20 without + count as international"
   },
   {
@@ -172,6 +196,7 @@
     "default_country": "AE",
     "e164": "+971501234567",
     "sha256": "5cd602a57e6a0414e38023888d6275b31208be50ab5cf4c1e7f197138da7fed1",
+    "digits_sha256": "b7a8f5085aa733eb29857a02945bc84a5227e693708d469ec9fb21d34e9e44f5",
     "note": "AE digits starting 971 without + count as international"
   },
   {
@@ -179,6 +204,7 @@
     "default_country": "BH",
     "e164": "+97336001234",
     "sha256": "e12050a11ab9135212422181fa94bad661f55b48d8272aaf6b5403031bee4462",
+    "digits_sha256": "407d194600666ee625a571c9ff9160d99095234a1211ed22030fe7221f85b62f",
     "note": "BH local, no trunk prefix"
   },
   {
@@ -186,6 +212,7 @@
     "default_country": "KW",
     "e164": "+96550001234",
     "sha256": "9f28dbe8ccffd3f0b204c7c493f51ff9c83a359985a9a27259e4122d504b751b",
+    "digits_sha256": "32b0759172a242a98b3f9a43f13408c323f1cfe4f1e864071ee26c51440a1c2b",
     "note": "KW local, no trunk prefix"
   },
   {
@@ -193,6 +220,7 @@
     "default_country": "OM",
     "e164": "+96892123456",
     "sha256": "3fe4625647f62dbba8f1ffd8815d26a0d6c1341a3b7ede7ec87fff8d3fe42306",
+    "digits_sha256": "d2966e56063e8548dceb801c03aec1d9bcd2dc7190254601587135c721f71230",
     "note": "OM local, no trunk prefix"
   },
   {
@@ -200,6 +228,7 @@
     "default_country": "QA",
     "e164": "+97433123456",
     "sha256": "d23cd49d759fb079f840761463b7ffc8111246f9a5e50bd20f71e01181a2484f",
+    "digits_sha256": "286cbda48590e7d80d09a9c329f6298e33ee623f13f580726908bb55586a94d5",
     "note": "QA local, no trunk prefix"
   },
   {
@@ -207,6 +236,7 @@
     "default_country": "JO",
     "e164": "+962791234567",
     "sha256": "412bae6acec382bd57991f4afa33a78d1533334b7d884baaa9d8746f93981ba6",
+    "digits_sha256": "f028c1f8de73319d2079f247df645c65a60842ddbd8fba787a0bb9763f936c13",
     "note": "JO mobile, trunk 0 dropped"
   },
   {
@@ -214,6 +244,7 @@
     "default_country": "GB",
     "e164": "+447700900123",
     "sha256": "a8acc3a90a7b4e4dc65e93db9240ed26523050ef754d63b75b5161de76781436",
+    "digits_sha256": "033134b911b137918338415ee3d20a064b24773d36a3b02e8b99fdd3fcd6b4cd",
     "note": "GB mobile, trunk 0 dropped"
   },
   {
@@ -221,6 +252,7 @@
     "default_country": null,
     "e164": null,
     "sha256": null,
+    "digits_sha256": null,
     "note": "local number without a default country: not hashed"
   },
   {
@@ -228,6 +260,7 @@
     "default_country": null,
     "e164": null,
     "sha256": null,
+    "digits_sha256": null,
     "note": "fewer than 7 digits after +: not hashed"
   },
   {
@@ -235,6 +268,7 @@
     "default_country": null,
     "e164": null,
     "sha256": null,
+    "digits_sha256": null,
     "note": "more than 15 digits after +: not hashed"
   },
   {
@@ -242,6 +276,7 @@
     "default_country": null,
     "e164": null,
     "sha256": null,
+    "digits_sha256": null,
     "note": "a + then 0 is no country code (the old pixel's EG output): not hashed"
   },
   {
@@ -249,6 +284,7 @@
     "default_country": "EG",
     "e164": null,
     "sha256": null,
+    "digits_sha256": null,
     "note": "blank: not hashed"
   }
 ]

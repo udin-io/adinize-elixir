@@ -8,7 +8,7 @@ defmodule Adinize.Hash do
       "8c87b489ce35cf2e2f39f80e282cb2e804932a56a213983eeeb428407d43b52d"
 
   Text is trimmed and lowercased, following Meta's customer information
-  parameters. Phones go through `Adinize.Phone` first; see `phone/2`.
+  parameters. Phones go through `Adinize.Phone` first; see `phone/2` and `phone_digits/2`.
   """
 
   @spec email(String.t() | nil) :: String.t() | nil
@@ -18,6 +18,18 @@ defmodule Adinize.Hash do
   @spec phone(String.t() | nil, String.t() | nil) :: String.t() | nil
   def phone(value, default_country \\ nil),
     do: value |> Adinize.Phone.e164(default_country) |> sha256()
+
+  @doc """
+  Hashes the E.164 form of `value` without its `+`, the form Meta matches.
+  `nil` when it has no E.164 form.
+  """
+  @spec phone_digits(String.t() | nil, String.t() | nil) :: String.t() | nil
+  def phone_digits(value, default_country \\ nil) do
+    case Adinize.Phone.e164(value, default_country) do
+      nil -> nil
+      e164 -> e164 |> String.trim_leading("+") |> sha256()
+    end
+  end
 
   @spec name(String.t() | nil) :: String.t() | nil
   def name(value), do: value |> text() |> sha256()

@@ -17,7 +17,32 @@ defmodule Adinize.PhoneTest do
       row = unquote(Macro.escape(row))
       assert Phone.e164(row["input"], row["default_country"]) == row["e164"]
       assert Hash.phone(row["input"], row["default_country"]) == row["sha256"]
+      assert Hash.phone_digits(row["input"], row["default_country"]) == row["digits_sha256"]
     end
+  end
+
+  test "digits_sha256 is the SHA-256 of the E.164 number without its +, null where there is none" do
+    for row <- @vectors do
+      expected =
+        case row["e164"] do
+          nil ->
+            nil
+
+          e164 ->
+            :sha256 |> :crypto.hash(String.trim_leading(e164, "+")) |> Base.encode16(case: :lower)
+        end
+
+      assert row["digits_sha256"] == expected, "row #{inspect(row["input"])}"
+    end
+  end
+
+  # Meta, Customer Information Parameters: 16505551212 hashes to this.
+  test "the US row equals Meta's documented phone hash" do
+    row =
+      Enum.find(@vectors, &(&1["input"] == "(650) 555-1212" and &1["default_country"] == "US"))
+
+    assert row["digits_sha256"] ==
+             "e323ec626319ca94ee8bff2e4c87cf613be6ea19919ed1364124e16807ab3176"
   end
 
   test "invalid UTF-8 has no E.164 form and does not raise" do

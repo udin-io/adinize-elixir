@@ -48,6 +48,15 @@ Adinize.track("Purchase",
   `default_country`'s code; one without a `+`, a `00` prefix or a default
   country is left out. Arabic-Indic digits work, and for EG, SA, AE, GB and
   JO a `0` written after the country code is dropped.
+- `phone:` sends two hashes of the same E.164 number: `phone_hash` (with the
+  `+`, read by Google Ads and TikTok) and `phone_digits_hash` (digits only,
+  the form Meta matches). A number with no E.164 form sends neither.
+- Pre-hashed keys (`email_hash:`, `phone_hash:`, `phone_digits_hash:`,
+  `first_name_hash:`, `last_name_hash:`, `street_address_hash:`) take 64
+  lowercase hex characters. The SDK cannot derive one phone hash from the
+  other, so pass both `phone_hash:` and `phone_digits_hash:`. With only
+  `phone_hash:`, Google and TikTok match the phone and Meta does not.
+  `phone:` beside either pre-hashed phone key is `INVALID_OPTION`.
 - `Adinize.track_many/2` sends up to 100 events in one request.
 
 From a Phoenix controller, add the visitor cookie, Meta's cookies, the IP

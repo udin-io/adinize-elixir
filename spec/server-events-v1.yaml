@@ -156,13 +156,29 @@ components:
       description: |
         Send hashes, never raw email or phone: an event carrying `email` or
         `phone` is rejected with RAW_PII. Each *_hash is the SHA-256 of the
-        trimmed, lowercased value, as 64 lowercase hex characters. Every
-        value is a string, except `consent`.
+        trimmed, lowercased value, as 64 lowercase hex characters; the two
+        phone hashes hash the E.164 number instead. Every value is a string,
+        except `consent`.
       properties:
         email_hash:
           $ref: "#/components/schemas/Sha256"
         phone_hash:
-          $ref: "#/components/schemas/Sha256"
+          allOf:
+            - $ref: "#/components/schemas/Sha256"
+          description: |
+            SHA-256 of the E.164 phone number with its `+`.
+            `+1 (650) 555-1212` hashes as `+16505551212`. Google Ads and
+            TikTok match this form.
+        phone_digits_hash:
+          allOf:
+            - $ref: "#/components/schemas/Sha256"
+          description: |
+            SHA-256 of the E.164 phone number without its `+`: country code
+            and digits only. `+1 (650) 555-1212` hashes as `16505551212`,
+            giving
+            `e323ec626319ca94ee8bff2e4c87cf613be6ea19919ed1364124e16807ab3176`.
+            Meta matches phones only in this form. Send it beside
+            `phone_hash`, which hashes the same number with its `+`.
         first_name_hash:
           $ref: "#/components/schemas/Sha256"
         last_name_hash:

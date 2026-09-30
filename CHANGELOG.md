@@ -6,6 +6,10 @@
   events API and return the result for each event.
 - `Adinize.Hash` and `Adinize.Phone` hash personal fields; phones become
   E.164 with a `default_country`.
+- `phone:` also sends `phone_digits_hash`, the hash of the E.164 number
+  without its `+`, which Meta matches; `phone_digits_hash:` joins the
+  pre-hashed keys. `Adinize.Hash.phone_digits/2` computes it. `phone:` with
+  a pre-hashed phone key is `INVALID_OPTION`.
 - `Adinize.Plug.context/2` reads the visitor and Meta cookies, the IP and
   the User-Agent from a `Plug.Conn`.
 - `Adinize.Batcher` sends `Adinize.track_async/2` events in the
