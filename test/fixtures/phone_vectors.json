@@ -175,6 +175,48 @@
     "note": "AE digits starting 971 without + count as international"
   },
   {
+    "input": "3600 1234",
+    "default_country": "BH",
+    "e164": "+97336001234",
+    "sha256": "e12050a11ab9135212422181fa94bad661f55b48d8272aaf6b5403031bee4462",
+    "note": "BH local, no trunk prefix"
+  },
+  {
+    "input": "5000 1234",
+    "default_country": "KW",
+    "e164": "+96550001234",
+    "sha256": "9f28dbe8ccffd3f0b204c7c493f51ff9c83a359985a9a27259e4122d504b751b",
+    "note": "KW local, no trunk prefix"
+  },
+  {
+    "input": "9212 3456",
+    "default_country": "OM",
+    "e164": "+96892123456",
+    "sha256": "3fe4625647f62dbba8f1ffd8815d26a0d6c1341a3b7ede7ec87fff8d3fe42306",
+    "note": "OM local, no trunk prefix"
+  },
+  {
+    "input": "3312 3456",
+    "default_country": "QA",
+    "e164": "+97433123456",
+    "sha256": "d23cd49d759fb079f840761463b7ffc8111246f9a5e50bd20f71e01181a2484f",
+    "note": "QA local, no trunk prefix"
+  },
+  {
+    "input": "079 123 4567",
+    "default_country": "JO",
+    "e164": "+962791234567",
+    "sha256": "412bae6acec382bd57991f4afa33a78d1533334b7d884baaa9d8746f93981ba6",
+    "note": "JO mobile, trunk 0 dropped"
+  },
+  {
+    "input": "07700 900123",
+    "default_country": "GB",
+    "e164": "+447700900123",
+    "sha256": "a8acc3a90a7b4e4dc65e93db9240ed26523050ef754d63b75b5161de76781436",
+    "note": "GB mobile, trunk 0 dropped"
+  },
+  {
     "input": "0501234567",
     "default_country": null,
     "e164": null,
