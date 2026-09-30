@@ -77,6 +77,11 @@ defmodule Adinize.ContractTest do
     assert ExJsonSchema.Validator.validate(root, json) == :ok
   end
 
+  test "the spec documents phone_digits_hash", %{root: root} do
+    props = root.schema["definitions"]["UserData"]["properties"]
+    assert Map.has_key?(props, "phone_digits_hash")
+  end
+
   test "a minimal event validates", %{root: root} do
     assert ExJsonSchema.Validator.validate(root, body_sent("Lead", [])) == :ok
   end
