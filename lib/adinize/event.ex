@@ -12,17 +12,18 @@ defmodule Adinize.Event do
 
   @hashed %{
     email: "email_hash",
-    phone: "phone_hash",
     first_name: "first_name_hash",
     last_name: "last_name_hash",
     street_address: "street_address_hash"
   }
 
-  @prehashed ~w(email_hash phone_hash first_name_hash last_name_hash street_address_hash)a
+  @prehashed ~w(email_hash phone_hash phone_digits_hash first_name_hash last_name_hash street_address_hash)a
+
+  @prehashed_phones ~w(phone_hash phone_digits_hash)a
 
   @plain ~w(external_id client_ip_address client_user_agent fbp fbc gclid ttclid city state postal_code country_code)a
 
-  @user_keys Map.keys(@hashed) ++ @prehashed ++ @plain ++ [:consent]
+  @user_keys Map.keys(@hashed) ++ [:phone] ++ @prehashed ++ @plain ++ [:consent]
 
   @spec build(term(), term(), String.t() | nil) :: {:ok, map()} | {:error, Error.t()}
   def build(name, opts, default_country) when is_binary(name) and name != "" do
@@ -76,7 +77,8 @@ defmodule Adinize.Event do
   defp user_data(user, default_country) when is_list(user) or is_map(user) do
     user = Enum.to_list(user)
 
-    with :ok <- known_keys(user, @user_keys, "user field") do
+    with :ok <- known_keys(user, @user_keys, "user field"),
+         :ok <- one_phone_source(user) do
       Enum.reduce_while(user, {:ok, %{}}, fn {key, value}, {:ok, acc} ->
         put_user_field(acc, user_field(key, value, default_country))
       end)
@@ -85,11 +87,39 @@ defmodule Adinize.Event do
 
   defp user_data(_user, _default_country), do: invalid("user must be a keyword list or map")
 
+  # A raw phone and a pre-hashed phone key could name two different numbers.
+  defp one_phone_source(user) do
+    present = for {key, value} <- user, value != nil, do: key
+
+    if :phone in present and Enum.any?(present, &(&1 in @prehashed_phones)),
+      do: invalid("user phone cannot be sent with phone_hash or phone_digits_hash; pass one"),
+      else: :ok
+  end
+
   defp put_user_field(acc, {:ok, nil}), do: {:cont, {:ok, acc}}
+
+  defp put_user_field(acc, {:ok, pairs}) when is_list(pairs),
+    do: {:cont, {:ok, Enum.into(pairs, acc)}}
+
   defp put_user_field(acc, {:ok, {name, value}}), do: {:cont, {:ok, Map.put(acc, name, value)}}
   defp put_user_field(_acc, {:error, _} = error), do: {:halt, error}
 
   defp user_field(_key, nil, _default_country), do: {:ok, nil}
+
+  # Meta reads the hash of the digits, Google and TikTok the hash with the +.
+  # Both come from one E.164 number, so a phone sends both or neither.
+  defp user_field(:phone, value, default_country) do
+    if is_binary(value) and String.valid?(value) do
+      hashes = [
+        {"phone_hash", Hash.phone(value, default_country)},
+        {"phone_digits_hash", Hash.phone_digits(value, default_country)}
+      ]
+
+      {:ok, for({name, hash} <- hashes, hash != nil, do: {name, hash})}
+    else
+      invalid("user phone must be a UTF-8 string")
+    end
+  end
 
   defp user_field(key, value, default_country) when is_map_key(@hashed, key) do
     if is_binary(value) and String.valid?(value) do
@@ -124,7 +154,6 @@ defmodule Adinize.Event do
   defp user_field(key, _value, _default_country), do: invalid("user #{key} has the wrong type")
 
   defp hash(:email, value, _country), do: Hash.email(value)
-  defp hash(:phone, value, country), do: Hash.phone(value, country)
   defp hash(:street_address, value, _country), do: Hash.street_address(value)
   defp hash(_name, value, _country), do: Hash.name(value)
 

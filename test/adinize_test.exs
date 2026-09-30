@@ -41,6 +41,8 @@ defmodule AdinizeTest do
       assert event["user_data"] == %{
                "email_hash" => "8c87b489ce35cf2e2f39f80e282cb2e804932a56a213983eeeb428407d43b52d",
                "phone_hash" => "9476e557c9e413deae474978709659f5b4f1c6a18553eddff8f042702843d0c7",
+               "phone_digits_hash" =>
+                 "6993ec5cc979510592725a267129b73cee2e99c29488027fe094dd24a9e1bfb3",
                "client_ip_address" => "203.0.113.7"
              }
 
@@ -73,7 +75,7 @@ defmodule AdinizeTest do
       %{"events" => [event]} = Jason.decode!(raw)
 
       assert Map.keys(event["user_data"]) |> Enum.sort() ==
-               ~w(email_hash first_name_hash last_name_hash phone_hash street_address_hash)
+               ~w(email_hash first_name_hash last_name_hash phone_digits_hash phone_hash street_address_hash)
     end
 
     test "defaults event_id to a UUIDv4 and event_time to now, in Unix seconds" do
@@ -147,6 +149,48 @@ defmodule AdinizeTest do
       respond(200, Stub.accepted("x"))
       track(user: [phone: "0501234567"])
       refute Map.has_key?(sent_event(), "user_data")
+    end
+
+    test "a phone sends both hashes, from one E.164 number" do
+      respond(200, Stub.accepted("x"))
+      track(user: [phone: "0100 123 4567"], default_country: "EG")
+      user_data = sent_event()["user_data"]
+
+      assert user_data["phone_hash"] ==
+               "9476e557c9e413deae474978709659f5b4f1c6a18553eddff8f042702843d0c7"
+
+      assert user_data["phone_digits_hash"] ==
+               "6993ec5cc979510592725a267129b73cee2e99c29488027fe094dd24a9e1bfb3"
+    end
+
+    test "the digits of a phone never leave, only their hash" do
+      respond(200, Stub.accepted("x"))
+      track(user: [phone: "+20 100 123 4567"])
+      assert_received {:request, _conn, raw}
+      refute raw =~ "201001234567"
+    end
+
+    test "pre-hashed phone keys reach the body as given, alone or together" do
+      digits = String.duplicate("b", 64)
+      plus = String.duplicate("c", 64)
+
+      for {user, expected} <- [
+            {[phone_digits_hash: digits], %{"phone_digits_hash" => digits}},
+            {[phone_hash: plus], %{"phone_hash" => plus}},
+            {[phone_hash: plus, phone_digits_hash: digits],
+             %{"phone_hash" => plus, "phone_digits_hash" => digits}}
+          ] do
+        respond(200, Stub.accepted("x"))
+        track(user: user)
+        assert sent_event()["user_data"] == expected
+      end
+    end
+
+    test "a nil phone beside a pre-hashed phone key sends the pre-hashed key" do
+      respond(200, Stub.accepted("x"))
+      hash = String.duplicate("b", 64)
+      track(user: [phone: nil, phone_digits_hash: hash])
+      assert sent_event()["user_data"] == %{"phone_digits_hash" => hash}
     end
   end
 
@@ -292,6 +336,13 @@ defmodule AdinizeTest do
           {"non-string email", [user: [email: 123]]},
           {"phone with invalid UTF-8", [user: [phone: <<255, ?1>>]]},
           {"bad precomputed hash", [user: [email_hash: "ABC"]]},
+          {"digits hash with the plus form of a phone",
+           [user: [phone_digits_hash: "16505551212"]]},
+          {"digits hash in uppercase", [user: [phone_digits_hash: String.duplicate("B", 64)]]},
+          {"phone with phone_hash",
+           [user: [phone: "+16505551212", phone_hash: String.duplicate("a", 64)]]},
+          {"phone with phone_digits_hash",
+           [user: [phone: "+16505551212", phone_digits_hash: String.duplicate("a", 64)]]},
           {"consent not a keyword list", [user: [consent: [1]]]},
           {"consent with an unknown key", [user: [consent: [ads: true]]]},
           {"consent with a tuple key", [user: [consent: %{{:a} => true}]]},
@@ -318,6 +369,17 @@ defmodule AdinizeTest do
 
         refute_received {:request, _, _}
       end
+    end
+
+    test "a bad phone_digits_hash names the field and the rule, never the value" do
+      respond(200, Stub.accepted("o1"))
+
+      assert {:error, %Adinize.Error{code: "INVALID_OPTION", message: message}} =
+               track(user: [phone_digits_hash: "16505551212"])
+
+      assert message =~ "phone_digits_hash"
+      assert message =~ "64 lowercase hex characters"
+      refute message =~ "16505551212"
     end
 
     for key <- [:email, "phone", "Email"] do

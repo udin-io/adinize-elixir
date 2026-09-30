@@ -73,13 +73,22 @@ defmodule Adinize.ContractTest do
         data: [value: 1.5, currency: "EGP", order_id: "1", content_ids: ["a"]]
       )
 
-    assert map_size(json["events"] |> hd() |> Map.fetch!("user_data")) == 17
+    assert map_size(json["events"] |> hd() |> Map.fetch!("user_data")) == 18
     assert ExJsonSchema.Validator.validate(root, json) == :ok
   end
 
   test "the spec documents phone_digits_hash", %{root: root} do
     props = root.schema["definitions"]["UserData"]["properties"]
     assert Map.has_key?(props, "phone_digits_hash")
+  end
+
+  test "both phone hashes validate; a digits hash that is not a SHA-256 does not", %{root: root} do
+    json = body_sent("Lead", user: [phone: "+1 650 555 1212"])
+    assert %{"phone_digits_hash" => _, "phone_hash" => _} = hd(json["events"])["user_data"]
+    assert ExJsonSchema.Validator.validate(root, json) == :ok
+
+    bad = put_in(json, ["events", Access.at(0), "user_data", "phone_digits_hash"], "16505551212")
+    assert {:error, _} = ExJsonSchema.Validator.validate(root, bad)
   end
 
   test "a minimal event validates", %{root: root} do
