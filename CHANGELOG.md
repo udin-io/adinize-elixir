@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- `Adinize.Plug.context/2` reads TikTok's `_ttp` cookie and sends it as
+  `user_data.ttp`, which the server forwards to TikTok. `ttp:` joins the
+  plain `user` keys.
+- `spec/server-events-v1.yaml` matches the server's contract, which now
+  documents `ttp`.
+
 ## 0.1.0 - 2026-10-02
 
 First release on Hex.
