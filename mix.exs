@@ -1,13 +1,42 @@
 defmodule Adinize.MixProject do
   use Mix.Project
 
+  @version "0.1.0"
+  @source_url "https://github.com/udin-io/adinize-elixir"
+
   def project do
     [
       app: :adinize,
-      version: "0.1.0",
+      version: @version,
       elixir: "~> 1.17",
       start_permanent: Mix.env() == :prod,
-      deps: deps()
+      deps: deps(),
+      description:
+        "Elixir SDK for the adinize server events API: send conversions from your " <>
+          "backend to Meta, TikTok and Google Ads, with hashed personal data.",
+      package: package(),
+      docs: docs(),
+      source_url: @source_url
+    ]
+  end
+
+  defp package do
+    [
+      licenses: ["MIT"],
+      links: %{
+        "GitHub" => @source_url,
+        "OpenAPI contract" => "https://adinize.ai/api/server/v1/openapi.yaml",
+        "Changelog" => "#{@source_url}/blob/main/CHANGELOG.md"
+      },
+      files: ~w(lib mix.exs README.md CHANGELOG.md LICENSE)
+    ]
+  end
+
+  defp docs do
+    [
+      main: "readme",
+      extras: ["README.md", "CHANGELOG.md", "LICENSE"],
+      source_ref: "v#{@version}"
     ]
   end
 
@@ -21,6 +50,7 @@ defmodule Adinize.MixProject do
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
+      {:ex_doc, "~> 0.40", only: [:dev]},
       {:telemetry, "~> 1.0"},
       {:jason, "~> 1.0"},
       {:plug, "~> 1.20", optional: true},
