@@ -7,8 +7,8 @@ if Code.ensure_loaded?(Plug.Conn) do
         Adinize.track("Purchase", Adinize.Plug.context(conn) ++ [event_id: order.id])
 
     It reads the `_mb_vid` visitor cookie, Meta's `_fbp` and `_fbc`
-    cookies, the client IP and the User-Agent. TikTok's `ttp` cookie is
-    left out: the server events API does not accept it yet.
+    cookies, TikTok's `_ttp` cookie (sent as `ttp`), the client IP and the
+    User-Agent.
 
     `page_url` leaves out the query string, which can hold an email or a
     token; pass `query_string: true` to keep it.
@@ -29,6 +29,7 @@ if Code.ensure_loaded?(Plug.Conn) do
         present(
           fbp: cookies["_fbp"],
           fbc: cookies["_fbc"],
+          ttp: cookies["_ttp"],
           client_ip_address: conn.remote_ip && conn.remote_ip |> :inet.ntoa() |> to_string(),
           client_user_agent: conn |> get_req_header("user-agent") |> List.first()
         )

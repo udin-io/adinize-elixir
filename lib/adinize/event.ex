@@ -21,7 +21,7 @@ defmodule Adinize.Event do
 
   @prehashed_phones ~w(phone_hash phone_digits_hash)a
 
-  @plain ~w(external_id client_ip_address client_user_agent fbp fbc gclid ttclid city state postal_code country_code)a
+  @plain ~w(external_id client_ip_address client_user_agent fbp fbc ttp gclid ttclid city state postal_code country_code)a
 
   @user_keys Map.keys(@hashed) ++ [:phone] ++ @prehashed ++ @plain ++ [:consent]
 

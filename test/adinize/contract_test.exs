@@ -62,6 +62,7 @@ defmodule Adinize.ContractTest do
           client_user_agent: "UA",
           fbp: "fb.1.1.1",
           fbc: "fb.1.1.abc",
+          ttp: "ttp-value",
           gclid: "g",
           ttclid: "t",
           city: "cairo",
@@ -73,8 +74,14 @@ defmodule Adinize.ContractTest do
         data: [value: 1.5, currency: "EGP", order_id: "1", content_ids: ["a"]]
       )
 
-    assert map_size(json["events"] |> hd() |> Map.fetch!("user_data")) == 18
+    assert map_size(json["events"] |> hd() |> Map.fetch!("user_data")) == 19
     assert ExJsonSchema.Validator.validate(root, json) == :ok
+  end
+
+  test "the spec documents ttp as TikTok's _ttp cookie", %{root: root} do
+    props = root.schema["definitions"]["UserData"]["properties"]
+    assert props["ttp"]["type"] == "string"
+    assert props["ttp"]["description"] =~ "`_ttp` cookie"
   end
 
   test "the spec documents phone_digits_hash", %{root: root} do

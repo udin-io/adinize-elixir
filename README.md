@@ -59,8 +59,8 @@ Adinize.track("Purchase",
   `phone:` beside either pre-hashed phone key is `INVALID_OPTION`.
 - `Adinize.track_many/2` sends up to 100 events in one request.
 
-From a Phoenix controller, add the visitor cookie, Meta's cookies, the IP
-and the User-Agent:
+From a Phoenix controller, add the visitor cookie, Meta's and TikTok's
+cookies, the IP and the User-Agent:
 
 ```elixir
 Adinize.track("Purchase", Adinize.Plug.context(conn) ++ [event_id: order.id])
@@ -80,8 +80,9 @@ rules say.
 | `street_address` | the trimmed, lowercased text |
 
 A field that is empty after trimming, or a phone that cannot become E.164,
-is left out of the request. IP address, User-Agent and the `_fbc` and
-`_fbp` cookies go as given: Meta and TikTok match them unhashed.
+is left out of the request. IP address, User-Agent, the `_fbc` and `_fbp`
+cookies, and the `_ttp` cookie (as `ttp:`) go as given: Meta and TikTok
+match them unhashed.
 `Adinize.Hash` exposes each function if you need a hash elsewhere.
 
 ## Deduplicate with the browser pixel
