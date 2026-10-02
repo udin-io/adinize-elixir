@@ -199,8 +199,17 @@ components:
           type: string
         gclid:
           type: string
+        ttp:
+          type: string
+          description: |
+            The value of TikTok's `_ttp` cookie, which the TikTok pixel sets
+            on your domain. TikTok matches the event to the visitor with it.
         ttclid:
           type: string
+          description: |
+            The `_ttp` cookie, the same as `ttp`; older clients send it here.
+            When an event carries both, a non-empty `ttp` wins. It is not
+            TikTok's click id.
         city:
           type: string
         state:
