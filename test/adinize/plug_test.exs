@@ -9,18 +9,19 @@ defmodule Adinize.PlugTest do
     |> put_req_cookie("_mb_vid", "mb.1790499000000.k3j9x2a1b")
     |> put_req_cookie("_fbp", "fb.1.1790.1")
     |> put_req_cookie("_fbc", "fb.1.1790.abc")
-    |> put_req_cookie("ttp", "ttp-value")
+    |> put_req_cookie("_ttp", "ttp-value")
     |> Plug.Conn.put_req_header("user-agent", "Mozilla/5.0")
     |> Map.put(:remote_ip, {203, 0, 113, 7})
   end
 
-  test "reads the visitor and Meta cookies, IP, User-Agent and page URL; not ttp" do
+  test "reads the visitor, Meta and TikTok cookies, IP, User-Agent and page URL" do
     assert Adinize.Plug.context(shopper_conn("https://shop.example.com/checkout")) == [
              visitor_id: "mb.1790499000000.k3j9x2a1b",
              page_url: "https://shop.example.com/checkout",
              user: [
                fbp: "fb.1.1790.1",
                fbc: "fb.1.1790.abc",
+               ttp: "ttp-value",
                client_ip_address: "203.0.113.7",
                client_user_agent: "Mozilla/5.0"
              ]
@@ -62,6 +63,7 @@ defmodule Adinize.PlugTest do
     assert ctx[:page_url] == "https://shop.example.com/"
     refute Keyword.has_key?(ctx, :visitor_id)
     refute Keyword.has_key?(ctx[:user], :fbp)
+    refute Keyword.has_key?(ctx[:user], :ttp)
   end
 
   test "the context feeds track/2 as is" do
@@ -75,6 +77,6 @@ defmodule Adinize.PlugTest do
     %{"events" => [event]} = Jason.decode!(raw)
     assert event["visitor_id"] == "mb.1790499000000.k3j9x2a1b"
     assert event["user_data"]["fbp"] == "fb.1.1790.1"
-    refute raw =~ "ttp-value"
+    assert event["user_data"]["ttp"] == "ttp-value"
   end
 end
