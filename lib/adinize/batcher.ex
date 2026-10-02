@@ -5,7 +5,7 @@ defmodule Adinize.Batcher do
       children = [{Adinize.Batcher, flush_interval: 1_000, max_batch: 100}]
 
   A thin supervisor over the process that holds the queue
-  (`Adinize.Batcher.Queue`) and the `Task.Supervisor` that runs each HTTP
+  (an internal queue module) and the `Task.Supervisor` that runs each HTTP
   send, so a crash mid-send never loses the rest of the queue.
 
   Options: `:name` (default `Adinize.Batcher`), `:flush_interval` (ms,
@@ -14,7 +14,7 @@ defmodule Adinize.Batcher do
   `{:error, :queue_full}` and `[:adinize, :event, :dropped]` fires),
   `:shutdown` (ms, default 5,000 — how long a stop gets to flush what is
   held), plus `:secret_key`, `:base_url`, `:receive_timeout`,
-  `:req_options`, `:default_country` (see `Adinize.Client`).
+  `:req_options`, `:default_country`.
   """
 
   use Supervisor

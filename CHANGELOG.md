@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## 0.1.0 - 2026-10-02
+
+First release on Hex.
+
 - `Adinize.track/2` and `Adinize.track_many/2` send events to the server
   events API and return the result for each event.
 - `Adinize.Hash` and `Adinize.Phone` hash personal fields; phones become
