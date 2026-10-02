@@ -51,6 +51,14 @@ jobs:
       - run: mix credo --strict
         if: matrix.lint
       - run: mix test
+      - run: mix hex.build --unpack --output tmp/package
+        if: matrix.lint
+        env:
+          MIX_ENV: dev
+      - run: mix docs --warnings-as-errors
+        if: matrix.lint
+        env:
+          MIX_ENV: dev
 
   spec-drift:
     name: Vendored spec equals the live contract

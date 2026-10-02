@@ -1,0 +1,35 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    name: Test and publish to Hex
+    runs-on: ubuntu-24.04
+    env:
+      MIX_ENV: test
+    steps:
+      - uses: actions/checkout@v7
+      - uses: erlef/setup-beam@v1
+        with:
+          elixir-version: "1.20"
+          otp-version: "28"
+      - run: mix deps.get
+      - name: Tag matches mix.exs version
+        run: |
+          version=$(mix run --no-start -e 'IO.write(Mix.Project.config()[:version])')
+          test "v$version" = "${GITHUB_REF_NAME}" || {
+            echo "tag ${GITHUB_REF_NAME} does not match mix.exs version $version"
+            exit 1
+          }
+      - run: mix compile --warnings-as-errors
+      - run: mix test
+      - run: mix hex.publish --yes
+        env:
+          MIX_ENV: dev
+          HEX_API_KEY: ${{ secrets.HEX_API_KEY }}
