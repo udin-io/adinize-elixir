@@ -10,7 +10,7 @@ Personal data leaves your server only as SHA-256 hashes.
 
 ```elixir
 def deps do
-  [{:adinize, github: "udin-io/adinize-elixir"}]
+  [{:adinize, "~> 0.1"}]
 end
 ```
 
@@ -65,6 +65,42 @@ and the User-Agent:
 ```elixir
 Adinize.track("Purchase", Adinize.Plug.context(conn) ++ [event_id: order.id])
 ```
+
+## Hashing
+
+The SDK hashes these fields with SHA-256 before the request leaves your
+server. It trims and lowercases text first, as Meta's customer information
+rules say.
+
+| Field | Hashed from |
+|---|---|
+| `email` | the trimmed, lowercased address |
+| `phone` | the E.164 digits (see the phone rule above); Meta gets them without the `+` |
+| `first_name`, `last_name` | the trimmed, lowercased name |
+| `street_address` | the trimmed, lowercased text |
+
+A field that is empty after trimming, or a phone that cannot become E.164,
+is left out of the request. IP address, User-Agent and the `_fbc` and
+`_fbp` cookies go as given: Meta and TikTok match them unhashed.
+`Adinize.Hash` exposes each function if you need a hash elsewhere.
+
+## Deduplicate with the browser pixel
+
+When the adinize pixel in the browser and your server both report the same
+purchase, give both the same `event_id`, and use the same event name. The
+platforms keep one of the two: Meta and TikTok merge a browser and a server
+event that share `event_id` within 48 hours.
+
+Your server call carries the order number the browser event carries as
+its `event_id`:
+
+```elixir
+Adinize.track("Purchase", event_id: "order_10482", data: [value: 129.5, currency: "EGP"])
+```
+
+Your pixel's page in adinize shows how to send an `event_id` from the
+browser. A retry from your server is safe for the same reason: adinize answers
+`:duplicate` for an `event_id` its pixel already holds.
 
 ## Results and errors
 
@@ -123,6 +159,12 @@ The SDK never logs the key and never puts it in an error or in its own
 telemetry. Finch's telemetry events carry the request headers, key
 included: if your app logs Finch telemetry metadata, filter the
 `authorization` header first.
+
+## Contract
+
+The API behind this SDK is described by one OpenAPI file:
+<https://adinize.ai/api/server/v1/openapi.yaml>. `spec/server-events-v1.yaml`
+holds a copy that CI compares with the live file. Docs: <https://hexdocs.pm/adinize>.
 
 ## License
 
