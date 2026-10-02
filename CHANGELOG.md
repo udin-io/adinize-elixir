@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.1.1 (2026-10-02)
 
 - `Adinize.Plug.context/2` reads TikTok's `_ttp` cookie and sends it as
   `user_data.ttp`, which the server forwards to TikTok. `ttp:` joins the
