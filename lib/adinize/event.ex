@@ -8,7 +8,16 @@ defmodule Adinize.Event do
 
   alias Adinize.{Error, Hash}
 
-  @event_keys [:event_id, :event_time, :visitor_id, :page_url, :query_string, :user, :data]
+  @event_keys [
+    :event_id,
+    :event_time,
+    :visitor_id,
+    :page_url,
+    :query_string,
+    :user,
+    :data,
+    :platform_event_names
+  ]
 
   @hashed %{
     email: "email_hash",
@@ -34,7 +43,9 @@ defmodule Adinize.Event do
          {:ok, page_url} <- optional_string(opts, :page_url),
          page_url = page_url(page_url, Keyword.get(opts, :query_string) == true),
          {:ok, user_data} <- user_data(Keyword.get(opts, :user, []), default_country),
-         {:ok, event_data} <- event_data(Keyword.get(opts, :data, [])) do
+         {:ok, event_data} <- event_data(Keyword.get(opts, :data, [])),
+         {:ok, platform_names} <-
+           platform_event_names(Keyword.get(opts, :platform_event_names, [])) do
       {:ok,
        %{
          "event_id" => event_id,
@@ -43,7 +54,8 @@ defmodule Adinize.Event do
          "visitor_id" => visitor_id,
          "page_url" => page_url,
          "user_data" => user_data,
-         "event_data" => event_data
+         "event_data" => event_data,
+         "platform_event_names" => platform_names
        }
        |> Map.reject(fn {_k, v} -> v == nil or v == %{} end)}
     end
@@ -175,6 +187,30 @@ defmodule Adinize.Event do
   end
 
   defp event_data(_data), do: invalid("data must be a keyword list or map")
+
+  @platforms_named ~w(meta tiktok)
+
+  # The server checks blank, NUL and length (50 code points), as it does for
+  # event_name. A refusal names the key, never the event name.
+  defp platform_event_names(names) when is_list(names) or is_map(names) do
+    cond do
+      not ((is_map(names) or Keyword.keyword?(names)) and
+               Enum.all?(names, fn {k, _v} -> is_atom(k) or is_binary(k) end)) ->
+        invalid("platform_event_names must be a keyword list or map")
+
+      (unknown = for({k, _v} <- names, to_string(k) not in @platforms_named, do: k)) != [] ->
+        invalid("platform_event_names takes only meta and tiktok, not #{inspect(unknown)}")
+
+      Enum.all?(names, fn {_k, v} -> is_binary(v) and v != "" and String.valid?(v) end) ->
+        {:ok, Map.new(names, fn {k, v} -> {to_string(k), v} end)}
+
+      true ->
+        invalid("platform_event_names values must be non-empty UTF-8 strings")
+    end
+  end
+
+  defp platform_event_names(_names),
+    do: invalid("platform_event_names must be a keyword list or map")
 
   @personal_names ~w(first_name last_name street_address)
 
