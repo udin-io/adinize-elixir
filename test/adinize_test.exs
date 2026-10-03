@@ -47,6 +47,17 @@ defmodule AdinizeTest do
       refute Map.has_key?(sent_event(), "platform_event_names")
     end
 
+    test "a name with invalid UTF-8 is refused under platform_event_names, not data" do
+      respond(200, Stub.accepted("o1"))
+
+      assert {:error, %Adinize.Error{code: "INVALID_OPTION", message: message}} =
+               track(platform_event_names: [meta: <<255>>])
+
+      assert message =~ "platform_event_names"
+      refute message =~ "data"
+      refute_received {:request, _, _}
+    end
+
     test "a refusal names the platform, never the event name" do
       respond(200, Stub.accepted("o1"))
 
