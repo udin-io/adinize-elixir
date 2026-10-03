@@ -120,7 +120,53 @@ components:
           type: string
           minLength: 1
           maxLength: 50
-          description: Any name. Standard names such as Purchase, Lead and AddToCart map to each platform's own name.
+          description: |
+            A standard name (the examples) maps to each platform's own name:
+            TikTok gets Purchase as CompletePayment and Lead as SubmitForm.
+            Any other name is a custom event, sent to Meta and TikTok as is.
+            Your pixel's Forwarding settings choose which names each platform
+            receives.
+          examples:
+            - PageView
+            - ViewContent
+            - ViewCategory
+            - ViewCart
+            - Search
+            - AddToCart
+            - AddToWishlist
+            - InitiateCheckout
+            - AddPaymentInfo
+            - Purchase
+            - Lead
+            - CompleteRegistration
+            - Contact
+            - Subscribe
+            - StartTrial
+            - Schedule
+            - SubmitApplication
+            - CustomizeProduct
+            - FindLocation
+            - Donate
+        platform_event_names:
+          type: object
+          additionalProperties: false
+          description: |
+            The name to send one platform instead of adinize's mapping, such
+            as `{"tiktok": "Contact"}` for a Lead. The pixel's Forwarding
+            settings still match on event_name. Meta and TikTok drop a browser
+            and a server event as duplicates only when both carry the same
+            name and event_id, so a renamed event no longer matches the
+            browser pixel's event with that event_id. Revenue follows
+            event_name: only a Purchase carries its value.
+          properties:
+            meta:
+              type: string
+              minLength: 1
+              maxLength: 50
+            tiktok:
+              type: string
+              minLength: 1
+              maxLength: 50
         event_time:
           oneOf:
             - type: integer
