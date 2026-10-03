@@ -98,6 +98,24 @@ defmodule Adinize.ContractTest do
     assert {:error, _} = ExJsonSchema.Validator.validate(root, bad)
   end
 
+  test "an event with platform_event_names validates", %{root: root} do
+    json = body_sent("Lead", platform_event_names: [meta: "Lead", tiktok: "Contact"])
+
+    assert hd(json["events"])["platform_event_names"] == %{
+             "meta" => "Lead",
+             "tiktok" => "Contact"
+           }
+
+    assert ExJsonSchema.Validator.validate(root, json) == :ok
+  end
+
+  test "the schema refuses platform_event_names for another platform, so the check has teeth",
+       %{root: root} do
+    json = body_sent("Lead", platform_event_names: [tiktok: "Contact"])
+    bad = put_in(json, ["events", Access.at(0), "platform_event_names", "google_ads"], "x")
+    assert {:error, _} = ExJsonSchema.Validator.validate(root, bad)
+  end
+
   test "a minimal event validates", %{root: root} do
     assert ExJsonSchema.Validator.validate(root, body_sent("Lead", [])) == :ok
   end

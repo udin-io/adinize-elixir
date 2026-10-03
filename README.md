@@ -57,6 +57,13 @@ Adinize.track("Purchase",
   other, so pass both `phone_hash:` and `phone_digits_hash:`. With only
   `phone_hash:`, Google and TikTok match the phone and Meta does not.
   `phone:` beside either pre-hashed phone key is `INVALID_OPTION`.
+- `platform_event_names: [tiktok: "Contact"]` sends Meta or TikTok its own
+  name instead of adinize's mapping. Your pixel's Forwarding settings still
+  match on the event name you pass to `track/2`, and revenue follows it.
+  A renamed event no longer deduplicates against a browser event with the
+  same `event_id`, since the platforms match on name and `event_id`. Only
+  `meta` and `tiktok` are accepted; the server refuses a name over 50
+  characters (Unicode code points).
 - `Adinize.track_many/2` sends up to 100 events in one request.
 
 From a Phoenix controller, add the visitor cookie, Meta's and TikTok's

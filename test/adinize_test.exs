@@ -16,6 +16,60 @@ defmodule AdinizeTest do
     event
   end
 
+  describe "platform_event_names" do
+    test "sends the name each platform gets instead of adinize's mapping" do
+      respond(200, Stub.accepted("o1"))
+
+      Adinize.track(
+        "Lead",
+        Keyword.merge(Stub.opts(__MODULE__), platform_event_names: [tiktok: "Contact"])
+      )
+
+      event = sent_event()
+      assert event["event_name"] == "Lead"
+      assert event["platform_event_names"] == %{"tiktok" => "Contact"}
+    end
+
+    test "takes a map with string keys for both platforms" do
+      respond(200, Stub.accepted("o1"))
+      track(platform_event_names: %{"meta" => "Purchase", "tiktok" => "CompletePayment"})
+
+      assert sent_event()["platform_event_names"] == %{
+               "meta" => "Purchase",
+               "tiktok" => "CompletePayment"
+             }
+    end
+
+    test "an empty list sends no platform_event_names" do
+      respond(200, Stub.accepted("o1"))
+      track(platform_event_names: [])
+
+      refute Map.has_key?(sent_event(), "platform_event_names")
+    end
+
+    test "a name with invalid UTF-8 is refused under platform_event_names, not data" do
+      respond(200, Stub.accepted("o1"))
+
+      assert {:error, %Adinize.Error{code: "INVALID_OPTION", message: message}} =
+               track(platform_event_names: [meta: <<255>>])
+
+      assert message =~ "platform_event_names"
+      refute message =~ "data"
+      refute_received {:request, _, _}
+    end
+
+    test "a refusal names the platform, never the event name" do
+      respond(200, Stub.accepted("o1"))
+
+      assert {:error, %Adinize.Error{code: "INVALID_OPTION", message: message}} =
+               track(platform_event_names: [google_ads: "secret_campaign_name"])
+
+      assert message =~ "google_ads"
+      assert message =~ "meta and tiktok"
+      refute message =~ "secret_campaign_name"
+    end
+  end
+
   describe "the request" do
     test "carries email_hash, never the email, and the key only in the bearer header" do
       respond(200, Stub.accepted("o1"))
@@ -350,7 +404,24 @@ defmodule AdinizeTest do
           {"empty event_id", [event_id: ""]},
           {"event_time as text", [event_time: "yesterday"]},
           {"page_url not a string", [page_url: URI.parse("https://s/")]},
+          {"platform_event_names not a list", [platform_event_names: "Contact"]},
+          {"platform_event_names a struct", [platform_event_names: URI.parse("https://s/")]},
+          {"platform_event_names a MapSet", [platform_event_names: MapSet.new([1])]},
+          {"platform_event_names naming meta twice",
+           [platform_event_names: [meta: "Lead", meta: "Contact"]]},
+          {"platform_event_names naming meta as atom and string",
+           [platform_event_names: %{:meta => "Lead", "meta" => "Contact"}]},
+          {"platform_event_names for an unknown platform",
+           [platform_event_names: [google_ads: "submit_lead_form"]]},
+          {"platform_event_names with a tuple key", [platform_event_names: %{{:tiktok} => "X"}]},
+          {"platform_event_names with an empty name", [platform_event_names: [tiktok: ""]]},
+          {"platform_event_names with an atom name", [platform_event_names: [meta: :Contact]]},
+          {"platform_event_names with invalid UTF-8", [platform_event_names: [meta: <<255>>]]},
           {"data not a list", [data: "x"]},
+          {"user a struct", [user: URI.parse("https://s/")]},
+          {"consent a struct", [user: [consent: URI.parse("https://s/")]]},
+          {"data a struct", [data: URI.parse("https://s/")]},
+          {"data a MapSet", [data: MapSet.new([1])]},
           {"data with a tuple key", [data: %{{1, 2} => 1}]},
           {"data JSON cannot encode", [data: [value: {1, 2}]]},
           {"http base_url", [base_url: "http://adinize.ai"]},

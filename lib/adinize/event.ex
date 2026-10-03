@@ -8,7 +8,16 @@ defmodule Adinize.Event do
 
   alias Adinize.{Error, Hash}
 
-  @event_keys [:event_id, :event_time, :visitor_id, :page_url, :query_string, :user, :data]
+  @event_keys [
+    :event_id,
+    :event_time,
+    :visitor_id,
+    :page_url,
+    :query_string,
+    :user,
+    :data,
+    :platform_event_names
+  ]
 
   @hashed %{
     email: "email_hash",
@@ -34,7 +43,9 @@ defmodule Adinize.Event do
          {:ok, page_url} <- optional_string(opts, :page_url),
          page_url = page_url(page_url, Keyword.get(opts, :query_string) == true),
          {:ok, user_data} <- user_data(Keyword.get(opts, :user, []), default_country),
-         {:ok, event_data} <- event_data(Keyword.get(opts, :data, [])) do
+         {:ok, event_data} <- event_data(Keyword.get(opts, :data, [])),
+         {:ok, platform_names} <-
+           platform_event_names(Keyword.get(opts, :platform_event_names, [])) do
       {:ok,
        %{
          "event_id" => event_id,
@@ -43,7 +54,8 @@ defmodule Adinize.Event do
          "visitor_id" => visitor_id,
          "page_url" => page_url,
          "user_data" => user_data,
-         "event_data" => event_data
+         "event_data" => event_data,
+         "platform_event_names" => platform_names
        }
        |> Map.reject(fn {_k, v} -> v == nil or v == %{} end)}
     end
@@ -74,7 +86,8 @@ defmodule Adinize.Event do
   defp page_url(url, true), do: url
   defp page_url(url, false), do: url |> URI.parse() |> Map.put(:query, nil) |> URI.to_string()
 
-  defp user_data(user, default_country) when is_list(user) or is_map(user) do
+  defp user_data(user, default_country)
+       when is_list(user) or (is_map(user) and not is_struct(user)) do
     user = Enum.to_list(user)
 
     with :ok <- known_keys(user, @user_keys, "user field"),
@@ -142,10 +155,9 @@ defmodule Adinize.Event do
     do: {:ok, {Atom.to_string(key), value}}
 
   defp user_field(:consent, value, _default_country) when is_list(value) or is_map(value) do
-    if (is_map(value) or Keyword.keyword?(value)) and
+    if pairs?(value) and
          Enum.all?(value, fn {k, v} ->
-           (is_atom(k) or is_binary(k)) and to_string(k) in ~w(analytics marketing functional) and
-             is_boolean(v)
+           to_string(k) in ~w(analytics marketing functional) and is_boolean(v)
          end),
        do: {:ok, {"consent", Map.new(value, fn {k, v} -> {to_string(k), v} end)}},
        else: invalid("user consent takes analytics, marketing and functional booleans")
@@ -158,8 +170,7 @@ defmodule Adinize.Event do
   defp hash(_name, value, _country), do: Hash.name(value)
 
   defp event_data(data) when is_list(data) or is_map(data) do
-    if (is_map(data) or Keyword.keyword?(data)) and
-         Enum.all?(data, fn {k, _v} -> is_atom(k) or is_binary(k) end) do
+    if pairs?(data) do
       data = Map.new(data, fn {k, v} -> {to_string(k), v} end)
 
       # event_data is sent as given, so personal data here would leave in
@@ -175,6 +186,61 @@ defmodule Adinize.Event do
   end
 
   defp event_data(_data), do: invalid("data must be a keyword list or map")
+
+  # A keyword list, or a map keyed by atoms or strings. A struct is a value:
+  # enumerating one raises.
+  defp pairs?(value) when is_struct(value), do: false
+
+  defp pairs?(value) when is_map(value),
+    do: Enum.all?(value, fn {k, _v} -> is_atom(k) or is_binary(k) end)
+
+  defp pairs?(value) when is_list(value), do: Keyword.keyword?(value)
+  defp pairs?(_value), do: false
+
+  @platforms_named ~w(meta tiktok)
+
+  # The server checks blank, NUL and length (50 code points), as it does for
+  # event_name. A refusal names the key, never the event name.
+  defp platform_event_names(names) do
+    with :ok <- platform_names_shape(names),
+         :ok <- known_platforms(names),
+         :ok <- each_platform_once(names),
+         :ok <- platform_name_values(names) do
+      {:ok, Map.new(names, fn {k, v} -> {to_string(k), v} end)}
+    end
+  end
+
+  defp platform_names_shape(names) do
+    if pairs?(names),
+      do: :ok,
+      else: invalid("platform_event_names must be a keyword list or map")
+  end
+
+  defp known_platforms(names) do
+    case for({k, _v} <- names, to_string(k) not in @platforms_named, do: k) do
+      [] ->
+        :ok
+
+      unknown ->
+        invalid("platform_event_names takes only meta and tiktok, not #{inspect(unknown)}")
+    end
+  end
+
+  # `[meta: "a", meta: "b"]` or `%{:meta => "a", "meta" => "b"}` would
+  # send one of the two without saying which.
+  defp each_platform_once(names) do
+    keys = Enum.map(names, fn {k, _v} -> to_string(k) end)
+
+    if keys == Enum.uniq(keys),
+      do: :ok,
+      else: invalid("platform_event_names names a platform more than once")
+  end
+
+  defp platform_name_values(names) do
+    if Enum.all?(names, fn {_k, v} -> is_binary(v) and v != "" and String.valid?(v) end),
+      do: :ok,
+      else: invalid("platform_event_names values must be non-empty UTF-8 strings")
+  end
 
   @personal_names ~w(first_name last_name street_address)
 
