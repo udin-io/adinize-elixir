@@ -192,25 +192,36 @@ defmodule Adinize.Event do
 
   # The server checks blank, NUL and length (50 code points), as it does for
   # event_name. A refusal names the key, never the event name.
-  defp platform_event_names(names) when is_list(names) or is_map(names) do
-    cond do
-      not ((is_map(names) or Keyword.keyword?(names)) and
-               Enum.all?(names, fn {k, _v} -> is_atom(k) or is_binary(k) end)) ->
-        invalid("platform_event_names must be a keyword list or map")
-
-      (unknown = for({k, _v} <- names, to_string(k) not in @platforms_named, do: k)) != [] ->
-        invalid("platform_event_names takes only meta and tiktok, not #{inspect(unknown)}")
-
-      Enum.all?(names, fn {_k, v} -> is_binary(v) and v != "" and String.valid?(v) end) ->
-        {:ok, Map.new(names, fn {k, v} -> {to_string(k), v} end)}
-
-      true ->
-        invalid("platform_event_names values must be non-empty UTF-8 strings")
+  defp platform_event_names(names) do
+    with :ok <- platform_names_shape(names),
+         :ok <- known_platforms(names),
+         :ok <- platform_name_values(names) do
+      {:ok, Map.new(names, fn {k, v} -> {to_string(k), v} end)}
     end
   end
 
-  defp platform_event_names(_names),
-    do: invalid("platform_event_names must be a keyword list or map")
+  defp platform_names_shape(names) do
+    if (is_map(names) or (is_list(names) and Keyword.keyword?(names))) and
+         Enum.all?(names, fn {k, _v} -> is_atom(k) or is_binary(k) end),
+       do: :ok,
+       else: invalid("platform_event_names must be a keyword list or map")
+  end
+
+  defp known_platforms(names) do
+    case for({k, _v} <- names, to_string(k) not in @platforms_named, do: k) do
+      [] ->
+        :ok
+
+      unknown ->
+        invalid("platform_event_names takes only meta and tiktok, not #{inspect(unknown)}")
+    end
+  end
+
+  defp platform_name_values(names) do
+    if Enum.all?(names, fn {_k, v} -> is_binary(v) and v != "" and String.valid?(v) end),
+      do: :ok,
+      else: invalid("platform_event_names values must be non-empty UTF-8 strings")
+  end
 
   @personal_names ~w(first_name last_name street_address)
 
