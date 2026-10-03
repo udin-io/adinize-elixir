@@ -86,7 +86,8 @@ defmodule Adinize.Event do
   defp page_url(url, true), do: url
   defp page_url(url, false), do: url |> URI.parse() |> Map.put(:query, nil) |> URI.to_string()
 
-  defp user_data(user, default_country) when is_list(user) or is_map(user) do
+  defp user_data(user, default_country)
+       when is_list(user) or (is_map(user) and not is_struct(user)) do
     user = Enum.to_list(user)
 
     with :ok <- known_keys(user, @user_keys, "user field"),
@@ -153,7 +154,8 @@ defmodule Adinize.Event do
   defp user_field(key, value, _default_country) when key in @plain and is_binary(value),
     do: {:ok, {Atom.to_string(key), value}}
 
-  defp user_field(:consent, value, _default_country) when is_list(value) or is_map(value) do
+  defp user_field(:consent, value, _default_country)
+       when is_list(value) or (is_map(value) and not is_struct(value)) do
     if (is_map(value) or Keyword.keyword?(value)) and
          Enum.all?(value, fn {k, v} ->
            (is_atom(k) or is_binary(k)) and to_string(k) in ~w(analytics marketing functional) and
@@ -169,7 +171,7 @@ defmodule Adinize.Event do
   defp hash(:street_address, value, _country), do: Hash.street_address(value)
   defp hash(_name, value, _country), do: Hash.name(value)
 
-  defp event_data(data) when is_list(data) or is_map(data) do
+  defp event_data(data) when is_list(data) or (is_map(data) and not is_struct(data)) do
     if (is_map(data) or Keyword.keyword?(data)) and
          Enum.all?(data, fn {k, _v} -> is_atom(k) or is_binary(k) end) do
       data = Map.new(data, fn {k, v} -> {to_string(k), v} end)
