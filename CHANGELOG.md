@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.1.2 (2026-10-03)
 
 - `Adinize.track/2` takes `platform_event_names:`, the name Meta or TikTok
   gets instead of adinize's mapping, such as `[tiktok: "Contact"]` for a
