@@ -8,8 +8,8 @@
   name that is not a UTF-8 string is `INVALID_OPTION`, as is a platform
   named twice.
 - A struct passed as `user:`, `consent:` or `data:` is `INVALID_OPTION`.
-  It used to raise, and under `track_async/2` the raise stopped the
-  batcher with every queued event.
+  It used to raise; under `track_async/2` the raise crashed the batcher,
+  which lost the events it held.
 - `spec/server-events-v1.yaml` matches the server's contract, which now
   documents `platform_event_names` and lists the standard `event_name`
   values.
