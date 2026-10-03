@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+- `Adinize.track/2` takes `platform_event_names:`, the name Meta or TikTok
+  gets instead of adinize's mapping, such as `[tiktok: "Contact"]` for a
+  `Lead`. A platform other than `meta` or `tiktok`, an empty name or a
+  name that is not a UTF-8 string is `INVALID_OPTION`.
+- `spec/server-events-v1.yaml` matches the server's contract, which now
+  documents `platform_event_names` and lists the standard `event_name`
+  values.
+
 ## 0.1.1 (2026-10-02)
 
 - `Adinize.Plug.context/2` reads TikTok's `_ttp` cookie and sends it as
