@@ -39,8 +39,9 @@ Adinize.track("Purchase",
   hashed before sending. `data:` goes as given, so any key in it, at any
   depth, named `*email*`, `*phone*`, `first_name`, `last_name` or
   `street_address` is refused with the key's path.
-- `page_url` goes without its query string, which can hold an email or a
-  token. Pass `query_string: true` to keep it.
+- `page_url` goes without its query string and fragment, which can hold an
+  email or a token (`#access_token=...`). Pass `query_string: true` to keep
+  both. A user name and password in the URL never go.
 - `event_id` defaults to a UUIDv4 and `event_time` to now. Send your order
   number as `event_id` so a retry never counts twice: the server answers
   `:duplicate` for an `event_id` it already holds.
@@ -146,8 +147,9 @@ Adinize.track_async("Purchase",
   it drops the newest event and emits telemetry, rather than growing
   memory without bound.
 - On a 429 it waits `Retry-After` (falling back to the same backoff as a
-  5xx when the server gives none); on a 5xx, a timeout or a transport
-  error it backs off with jitter, up to 5 attempts total, the same
+  5xx when the server gives none). A `Retry-After` over 60 seconds is not
+  waited: the 429 comes back to you with its `retry_after`. On a 5xx, a
+  timeout or a transport error it backs off with jitter, up to 5 attempts total, the same
   `event_id` each time — the server answers a retried event `:duplicate`,
   never twice. A 400 or 401 is never retried.
 - On a supervised stop it flushes what it holds, best effort, within
