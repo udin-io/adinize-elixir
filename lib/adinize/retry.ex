@@ -2,7 +2,9 @@ defmodule Adinize.Retry do
   @moduledoc false
   # Retries a send that returns {:ok, _} | {:error, %Adinize.Error{}}, up to
   # 5 total attempts. 429 waits the server's Retry-After (falling back to
-  # the same backoff as a 5xx when the server gives none); a 5xx, a
+  # the same backoff as a 5xx when the server gives none, and returning the
+  # 429 at once when it asks for more than 60 s, as adinize-js does, so a
+  # hostile or broken server cannot park the caller); a 5xx, a
   # timeout or a transport error backs off with full jitter; a 400, 401 or
   # any other non-retryable error returns on the first attempt. Shared by
   # `Adinize.track/2` (retry: true) and `Adinize.Batcher.Queue`, so both
@@ -13,6 +15,7 @@ defmodule Adinize.Retry do
   @max_attempts 5
   @base_ms 200
   @cap_ms 10_000
+  @max_retry_after_s 60
 
   @spec run((-> {:ok, term()} | {:error, Error.t()}), keyword()) ::
           {:ok, term()} | {:error, Error.t()}
@@ -26,11 +29,12 @@ defmodule Adinize.Retry do
         ok
 
       {:error, %Error{} = error} = failure ->
-        if attempt_no < @max_attempts and retryable?(error) do
-          sleep(delay_ms(error, attempt_no, opts))
+        with true <- attempt_no < @max_attempts and retryable?(error),
+             {:ok, ms} <- delay_ms(error, attempt_no, opts) do
+          sleep(ms, opts)
           attempt(fun, attempt_no + 1, opts)
         else
-          failure
+          _ -> failure
         end
     end
   end
@@ -45,10 +49,14 @@ defmodule Adinize.Retry do
   def retryable?(%Error{}), do: false
 
   defp delay_ms(%Error{status: 429, retry_after: seconds}, _attempt_no, _opts)
-       when is_integer(seconds) and seconds >= 0,
-       do: seconds * 1_000
+       when is_integer(seconds) and seconds > @max_retry_after_s,
+       do: :give_up
 
-  defp delay_ms(%Error{}, attempt_no, opts), do: backoff_ms(attempt_no, opts)
+  defp delay_ms(%Error{status: 429, retry_after: seconds}, _attempt_no, _opts)
+       when is_integer(seconds) and seconds >= 0,
+       do: {:ok, seconds * 1_000}
+
+  defp delay_ms(%Error{}, attempt_no, opts), do: {:ok, backoff_ms(attempt_no, opts)}
 
   defp backoff_ms(attempt_no, opts) do
     base = Keyword.get(opts, :base_ms, @base_ms)
@@ -57,5 +65,5 @@ defmodule Adinize.Retry do
     Enum.random(1..max(ceiling, 1))
   end
 
-  defp sleep(ms), do: Process.sleep(ms)
+  defp sleep(ms, opts), do: Keyword.get(opts, :sleep, &Process.sleep/1).(ms)
 end

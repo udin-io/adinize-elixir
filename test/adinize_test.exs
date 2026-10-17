@@ -165,10 +165,10 @@ defmodule AdinizeTest do
       assert event["user_data"] == %{"email_hash" => hash}
     end
 
-    test "drops the query string from a page_url passed directly" do
+    test "drops the query string and fragment from a page_url passed directly" do
       respond(200, Stub.accepted("x"))
       track(page_url: "https://shop.example.com/done?email=jane@example.com#thanks")
-      assert sent_event()["page_url"] == "https://shop.example.com/done#thanks"
+      assert sent_event()["page_url"] == "https://shop.example.com/done"
     end
 
     test "keeps the query string with query_string: true" do

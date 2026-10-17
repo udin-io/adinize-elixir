@@ -1,0 +1,18 @@
+[
+  {"input": "https://shop.example.com/thanks?email=a@b.c#top", "query_string": false, "expected": "https://shop.example.com/thanks", "note": "query and fragment"},
+  {"input": "https://shop.example.com/thanks#access_token=t0k3n", "query_string": false, "expected": "https://shop.example.com/thanks", "note": "token in the fragment"},
+  {"input": "https://shop.example.com/p#a@b.c", "query_string": false, "expected": "https://shop.example.com/p", "note": "@ in the fragment is not userinfo"},
+  {"input": "/thanks?x=1#y", "query_string": false, "expected": "/thanks", "note": "relative path"},
+  {"input": "https://shop.example.com/thanks?x=a@b.c#top", "query_string": true, "expected": "https://shop.example.com/thanks?x=a@b.c#top", "note": "opt in keeps query and fragment"},
+  {"input": "https://shop.example.com/p?e=a@b.c", "query_string": true, "expected": "https://shop.example.com/p?e=a@b.c", "note": "@ in the query is not userinfo"},
+  {"input": "https://jane:s3cret@shop.example.com/thanks", "query_string": false, "expected": "https://shop.example.com/thanks", "note": "user and password"},
+  {"input": "https://jane@shop.example.com/thanks?x=1", "query_string": true, "expected": "https://shop.example.com/thanks?x=1", "note": "user dropped even with the query kept"},
+  {"input": "//jane:s3cret@shop.example.com/a", "query_string": false, "expected": "//shop.example.com/a", "note": "scheme-relative"},
+  {"input": "HTTPS://jane:s3cret@shop.example.com/a", "query_string": false, "expected": "HTTPS://shop.example.com/a", "note": "upper-case scheme"},
+  {"input": "https:jane:s3cret@shop.example.com/a", "query_string": false, "expected": "https://shop.example.com/a", "note": "no slashes"},
+  {"input": "https:/jane:s3cret@shop.example.com/a", "query_string": false, "expected": "https://shop.example.com/a", "note": "one slash"},
+  {"input": "https:\\\\jane:s3cret@shop.example.com/a", "query_string": false, "expected": "https://shop.example.com/a", "note": "two backslashes"},
+  {"input": "https:/\\jane:s3cret@shop.example.com/a", "query_string": false, "expected": "https://shop.example.com/a", "note": "mixed slashes"},
+  {"input": " \nhttps://jane:s3cret@shop.example.com/a", "query_string": false, "expected": "https://shop.example.com/a", "note": "leading space and newline"},
+  {"input": "ht\ttps://ja\nne:s3cret@shop.example.com/a", "query_string": false, "expected": "https://shop.example.com/a", "note": "tab and newline inside"}
+]

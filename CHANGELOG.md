@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+- `page_url` loses its fragment as well as its query string unless you pass
+  `query_string: true`, and always loses a user name and password in the
+  URL. This matches adinize-js; a fragment can hold `#access_token=...`.
+- A 429 whose `Retry-After` is over 60 seconds comes back as the error
+  instead of being waited out, under `retry: true` and in the batcher. A
+  `Retry-After` of 60 or less is still waited.
+
 ## 0.1.2 (2026-10-03)
 
 - `Adinize.track/2` takes `platform_event_names:`, the name Meta or TikTok
