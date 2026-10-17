@@ -81,10 +81,26 @@ defmodule Adinize.Event do
     end
   end
 
-  # A query string can hold an email or a token; it goes only when asked.
+  # Every form of user and password a WHATWG parser still reads as userinfo:
+  # any number of slashes or backslashes after the scheme (`https:jane:pw@host`,
+  # `https:\\jane@host`), or a bare `//`. Same pattern as adinize-js.
+  @userinfo ~r/^(?:([a-z][a-z0-9+.-]*:)[\\\/]*|[\\\/]{2})[^\\\/?#]*@/i
+
+  # The user and password never go: they hold a credential. The query string
+  # and the fragment can hold an email or a token, so they go only when asked.
+  # Leading control characters and spaces, tabs and newlines drop first, as a
+  # browser drops them, so they cannot hide the userinfo from the pattern.
   defp page_url(nil, _keep_query?), do: nil
-  defp page_url(url, true), do: url
-  defp page_url(url, false), do: url |> URI.parse() |> Map.put(:query, nil) |> URI.to_string()
+
+  defp page_url(url, keep_query?) do
+    without_user =
+      url
+      |> String.replace(~r/^[\x00-\x20]+/, "")
+      |> String.replace(~r/[\t\n\r]/, "")
+      |> then(&Regex.replace(@userinfo, &1, fn _all, scheme -> scheme <> "//" end))
+
+    if keep_query?, do: without_user, else: String.replace(without_user, ~r/[?#].*$/s, "")
+  end
 
   defp user_data(user, default_country)
        when is_list(user) or (is_map(user) and not is_struct(user)) do
