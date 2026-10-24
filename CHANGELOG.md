@@ -1,7 +1,11 @@
 # Changelog
 
-## Unreleased
+## 0.1.3 (2026-10-24)
 
+- Every dependency in the lock moves to its latest release, including req 0.7.5
+  and plug_crypto 2.2.1 (CVE-2026-105963). The lock only affects this
+  repository's own tests; the version ranges in `mix.exs` do not change, so
+  move plug_crypto to 2.2.1 in your own app's lock to get the fix.
 - `page_url` loses its fragment as well as its query string unless you pass
   `query_string: true`, and always loses a user name and password in the
   URL. This matches adinize-js; a fragment can hold `#access_token=...`.
