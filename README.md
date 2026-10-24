@@ -10,7 +10,7 @@ Personal data leaves your server only as SHA-256 hashes.
 
 ```elixir
 def deps do
-  [{:adinize, "~> 0.1"}]
+  [{:adinize, "~> 0.2"}]
 end
 ```
 
