@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.1.3 (2026-10-24)
+## 0.2.0 (2026-10-24)
 
 - Every dependency in the lock moves to its latest release, including req 0.7.5
   and plug_crypto 2.2.1 (CVE-2026-105963). The lock only affects this
