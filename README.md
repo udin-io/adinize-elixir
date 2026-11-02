@@ -10,7 +10,7 @@ Personal data leaves your server only as SHA-256 hashes.
 
 ```elixir
 def deps do
-  [{:adinize, "~> 0.2"}]
+  [{:adinize, "~> 0.3"}]
 end
 ```
 
@@ -66,6 +66,43 @@ Adinize.track("Purchase",
   `meta` and `tiktok` are accepted; the server refuses a name over 50
   characters (Unicode code points).
 - `Adinize.track_many/2` sends up to 100 events in one request.
+
+## Send an app event
+
+An event that happens in your mobile app takes `app:`. The SDK sends it
+with `action_source` `app`, and adinize forwards it as an app event instead
+of a web one.
+
+```elixir
+Adinize.track("Purchase",
+  event_id: "fund_42",
+  app: [
+    os: :ios,
+    os_version: "17.4",
+    advertiser_tracking_enabled: true,
+    bundle_id: "com.bokra.app",
+    app_version: "3.2.0",
+    app_store_id: "6443210987"
+  ],
+  user: [email: "a@b.co", madid: "6D92078A-8246-4BA4-AE5B-76104861E7DC", anon_id: "inst_9f2"],
+  data: [value: 500, currency: "EGP"]
+)
+```
+
+- `os` (`:ios` or `:android`), `os_version` and `advertiser_tracking_enabled`
+  are required. A missing one, or a bad `os`, is `INVALID_OPTION` and nothing
+  is sent. The other fields are `application_tracking_enabled`, `att_status`
+  (`:authorized`, `:denied`, `:not_determined`, `:restricted` or
+  `:not_applicable`), `bundle_id`, `app_version`, `app_store_id`,
+  `device_model`, `locale`, `timezone` and `carrier`. Each string is 1 to 128
+  characters (Unicode code points); an unknown key is refused by name.
+- `user:` takes `madid` (IDFA or GAID), `idfv`, `anon_id` (your install id),
+  `gbraid` and `wbraid`. They go as given, never hashed, and only with
+  `app:`; without it they are `INVALID_OPTION`. Send `madid` only when the
+  user allowed tracking: adinize drops it, and never stores it, when
+  `advertiser_tracking_enabled` is `false`.
+- Your pixel's page in adinize says which platforms receive app events and
+  what each one needs.
 
 From a Phoenix controller, add the visitor cookie, Meta's and TikTok's
 cookies, the IP and the User-Agent:

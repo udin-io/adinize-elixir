@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.3.0 (2026-11-02)
+
+- `Adinize.track/2` takes `app:`, for an event that happens in a mobile app.
+  It sends `action_source` `app` and the `app_data` block: `os`, `os_version`
+  and `advertiser_tracking_enabled` are required, and a missing or invalid
+  one is `INVALID_OPTION` before any request. An unknown `app:` key is
+  refused by name.
+- `user:` takes the device ids `madid`, `idfv` and `anon_id` and the Google
+  click ids `gbraid` and `wbraid`. They go unhashed and only with `app:`;
+  without it they are `INVALID_OPTION`, as the server refuses them on a web
+  event.
+- `spec/server-events-v1.yaml` matches the server's contract, which now
+  documents app events. A web event's body does not change.
+
 ## 0.2.0 (2026-10-24)
 
 - Every dependency in the lock moves to its latest release, including req 0.7.5

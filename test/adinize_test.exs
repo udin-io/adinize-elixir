@@ -70,6 +70,210 @@ defmodule AdinizeTest do
     end
   end
 
+  describe "app events" do
+    @app [
+      os: :ios,
+      os_version: "17.4",
+      advertiser_tracking_enabled: true,
+      bundle_id: "com.bokra.app",
+      app_version: "3.2.0",
+      app_store_id: "6443210987"
+    ]
+    @device_ids [
+      madid: "6D92078A-8246-4BA4-AE5B-76104861E7DC",
+      anon_id: "inst_9f2",
+      gbraid: "0AAA"
+    ]
+
+    test "app: sends action_source app, app_data and the device ids unhashed" do
+      respond(200, Stub.accepted("o1"))
+
+      track(
+        event_id: "fund_42",
+        app: @app,
+        user: [email: "a@b.co"] ++ @device_ids,
+        data: [value: 500, currency: "EGP"]
+      )
+
+      event = sent_event()
+      assert event["action_source"] == "app"
+
+      assert event["app_data"] == %{
+               "os" => "ios",
+               "os_version" => "17.4",
+               "advertiser_tracking_enabled" => true,
+               "bundle_id" => "com.bokra.app",
+               "app_version" => "3.2.0",
+               "app_store_id" => "6443210987"
+             }
+
+      assert event["user_data"]["madid"] == "6D92078A-8246-4BA4-AE5B-76104861E7DC"
+      assert event["user_data"]["anon_id"] == "inst_9f2"
+      assert event["user_data"]["gbraid"] == "0AAA"
+      assert event["user_data"]["email_hash"] =~ ~r/\A[0-9a-f]{64}\z/
+      refute Map.has_key?(event["user_data"], "email")
+    end
+
+    test "app: takes a map, atoms or strings for os and att_status, and the optional fields" do
+      respond(200, Stub.accepted("o1"))
+
+      track(
+        app: %{
+          os: "android",
+          os_version: "14",
+          advertiser_tracking_enabled: false,
+          application_tracking_enabled: true,
+          att_status: :not_applicable,
+          device_model: "Pixel 8",
+          locale: "ar_EG",
+          timezone: "Africa/Cairo",
+          carrier: "Vodafone"
+        }
+      )
+
+      assert sent_event()["app_data"] == %{
+               "os" => "android",
+               "os_version" => "14",
+               "advertiser_tracking_enabled" => false,
+               "application_tracking_enabled" => true,
+               "att_status" => "NOT_APPLICABLE",
+               "device_model" => "Pixel 8",
+               "locale" => "ar_EG",
+               "timezone" => "Africa/Cairo",
+               "carrier" => "Vodafone"
+             }
+
+      respond(200, Stub.accepted("o2"))
+      track(app: Keyword.put(@app, :att_status, "AUTHORIZED"))
+      assert sent_event()["app_data"]["att_status"] == "AUTHORIZED"
+    end
+
+    test "app: takes string keys, and a field named twice is refused" do
+      respond(200, Stub.accepted("o1"))
+
+      track(app: %{"os" => "ios", "os_version" => "17.4", "advertiser_tracking_enabled" => true})
+      assert sent_event()["app_data"]["os"] == "ios"
+
+      assert {:error, %Adinize.Error{message: "app names a field more than once"}} =
+               track(app: @app ++ [os: :android])
+
+      assert {:error, %Adinize.Error{message: message}} =
+               track(app: %{"os" => "ios", "bogus" => 1})
+
+      assert message =~ ~s(unknown app field: ["bogus"])
+      refute_received {:request, _, _}
+    end
+
+    test "a nil optional app field is left out, as a nil user field is" do
+      respond(200, Stub.accepted("o1"))
+      track(app: @app ++ [carrier: nil, att_status: nil])
+
+      app_data = sent_event()["app_data"]
+      refute Map.has_key?(app_data, "carrier")
+      refute Map.has_key?(app_data, "att_status")
+    end
+
+    test "a web event sends neither action_source nor app_data" do
+      respond(200, Stub.accepted("o1"))
+      track(user: [email: "a@b.co"], data: [value: 1])
+
+      event = sent_event()
+      refute Map.has_key?(event, "action_source")
+      refute Map.has_key?(event, "app_data")
+    end
+
+    for {label, opts, fragment} <- [
+          {"os missing", [app: Keyword.delete(@app, :os)], "app os"},
+          {"os_version missing", [app: Keyword.delete(@app, :os_version)], "app os_version"},
+          {"advertiser_tracking_enabled missing",
+           [app: Keyword.delete(@app, :advertiser_tracking_enabled)],
+           "app advertiser_tracking_enabled"},
+          {"os not ios or android", [app: Keyword.put(@app, :os, :windows)],
+           "app os must be :ios or :android"},
+          {"os a string that is not ios or android", [app: Keyword.put(@app, :os, "windows")],
+           "app os must be :ios or :android"},
+          {"advertiser_tracking_enabled not a boolean",
+           [app: Keyword.put(@app, :advertiser_tracking_enabled, "yes")],
+           "app advertiser_tracking_enabled must be true or false"},
+          {"os_version blank", [app: Keyword.put(@app, :os_version, "  ")],
+           "app os_version must be 1 to 128 characters"},
+          {"os_version 129 characters",
+           [app: Keyword.put(@app, :os_version, String.duplicate("é", 129))],
+           "app os_version must be 1 to 128 characters"},
+          {"bundle_id not a string", [app: Keyword.put(@app, :bundle_id, 42)],
+           "app bundle_id must be 1 to 128 characters"},
+          {"att_status unknown", [app: Keyword.put(@app, :att_status, "MAYBE")],
+           "app att_status must be one of"},
+          {"an unknown app key", [app: Keyword.put(@app, :idfa_raw, "x")], "unknown app field"},
+          {"app not a keyword list or map", [app: "ios"], "app must be a keyword list or map"},
+          {"app a struct", [app: URI.parse("https://s/")], "app must be a keyword list or map"},
+          {"an empty app", [app: []], "app os"},
+          {"madid without app:", [user: [madid: "6D92"]], "user madid needs the app: option"},
+          {"idfv without app:", [user: [idfv: "x"]], "user idfv needs the app: option"},
+          {"anon_id without app:", [user: [anon_id: "x"]], "user anon_id needs the app: option"},
+          {"gbraid without app:", [user: [gbraid: "x"]], "user gbraid needs the app: option"},
+          {"wbraid without app:", [user: [wbraid: "x"]], "user wbraid needs the app: option"},
+          {"madid empty", [app: @app, user: [madid: ""]], "user madid must be 1 to 128"},
+          {"madid not a string", [app: @app, user: [madid: 7]], "user madid must be 1 to 128"},
+          {"anon_id 129 characters", [app: @app, user: [anon_id: String.duplicate("a", 129)]],
+           "user anon_id must be 1 to 128"},
+          {"os_version one letter with 200 combining marks",
+           [app: Keyword.put(@app, :os_version, "a" <> String.duplicate("\u0301", 200))],
+           "app os_version must be 1 to 128 characters"},
+          {"bundle_id with a NUL byte", [app: Keyword.put(@app, :bundle_id, "com\0app")],
+           "app bundle_id must be 1 to 128 characters"},
+          {"anon_id with a NUL byte", [app: @app, user: [anon_id: "a\0b"]],
+           "user anon_id must be 1 to 128"},
+          {"a device id inside data", [data: [value: 1, meta: %{madid: "6D92"}]],
+           "data must not hold data.meta.madid; pass it under user: with app:"},
+          {"idfv at the top of data", [data: [idfv: "x"]],
+           "data must not hold data.idfv; pass it under user: with app:"},
+          {"gbraid 256 characters", [app: @app, user: [gbraid: String.duplicate("a", 256)]],
+           "user gbraid must be 1 to 255"}
+        ] do
+      test "INVALID_OPTION, nothing sent: #{label}" do
+        respond(200, Stub.accepted("o1"))
+
+        assert {:error, %Adinize.Error{code: "INVALID_OPTION", message: message}} =
+                 track(unquote(Macro.escape(opts)))
+
+        assert message =~ unquote(fragment)
+        refute_received {:request, _, _}
+      end
+    end
+
+    test "the largest legitimate values go out: 128 characters of two bytes, a 255-character gbraid" do
+      respond(200, Stub.accepted("o1"))
+      long = String.duplicate("é", 128)
+
+      track(
+        app: Keyword.put(@app, :os_version, long),
+        user: [anon_id: long, gbraid: String.duplicate("g", 255)]
+      )
+
+      event = sent_event()
+      assert event["app_data"]["os_version"] == long
+      assert event["user_data"]["anon_id"] == long
+      assert byte_size(event["user_data"]["gbraid"]) == 255
+    end
+
+    test "an error never holds the value of an app field or a device id" do
+      respond(200, Stub.accepted("o1"))
+      secret = "SECRET-DEVICE-VALUE"
+
+      for opts <- [
+            [app: Keyword.put(@app, :os, secret)],
+            [app: Keyword.put(@app, :att_status, secret)],
+            [app: Keyword.put(@app, :os_version, String.duplicate(secret, 20))],
+            [app: @app, user: [madid: String.duplicate(secret, 20)]],
+            [user: [madid: secret]]
+          ] do
+        assert {:error, %Adinize.Error{message: message}} = track(opts)
+        refute message =~ secret
+      end
+    end
+  end
+
   describe "the request" do
     test "carries email_hash, never the email, and the key only in the bearer header" do
       respond(200, Stub.accepted("o1"))

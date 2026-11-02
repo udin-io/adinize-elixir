@@ -15,6 +15,7 @@ defmodule Adinize.Event do
     :page_url,
     :query_string,
     :user,
+    :app,
     :data,
     :platform_event_names
   ]
@@ -32,7 +33,18 @@ defmodule Adinize.Event do
 
   @plain ~w(external_id client_ip_address client_user_agent fbp fbc ttp gclid ttclid city state postal_code country_code)a
 
-  @user_keys Map.keys(@hashed) ++ [:phone] ++ @prehashed ++ @plain ++ [:consent]
+  # Sent raw, and only on an app event: the server refuses them on any other.
+  @device_ids ~w(madid idfv anon_id)a
+  @click_ids ~w(gbraid wbraid)a
+
+  @user_keys Map.keys(@hashed) ++
+               [:phone] ++ @prehashed ++ @plain ++ @device_ids ++ @click_ids ++ [:consent]
+
+  @app_required ~w(os os_version advertiser_tracking_enabled)a
+  @app_strings ~w(os_version bundle_id app_version app_store_id device_model locale timezone carrier)a
+  @app_booleans ~w(advertiser_tracking_enabled application_tracking_enabled)a
+  @att_statuses ~w(AUTHORIZED DENIED NOT_DETERMINED RESTRICTED NOT_APPLICABLE)
+  @app_keys [:os, :att_status] ++ @app_strings ++ @app_booleans
 
   @spec build(term(), term(), String.t() | nil) :: {:ok, map()} | {:error, Error.t()}
   def build(name, opts, default_country) when is_binary(name) and name != "" do
@@ -42,7 +54,9 @@ defmodule Adinize.Event do
          {:ok, visitor_id} <- optional_string(opts, :visitor_id),
          {:ok, page_url} <- optional_string(opts, :page_url),
          page_url = page_url(page_url, Keyword.get(opts, :query_string) == true),
-         {:ok, user_data} <- user_data(Keyword.get(opts, :user, []), default_country),
+         {:ok, app_data} <- app_data(Keyword.get(opts, :app)),
+         {:ok, user_data} <-
+           user_data(Keyword.get(opts, :user, []), default_country, app_data != nil),
          {:ok, event_data} <- event_data(Keyword.get(opts, :data, [])),
          {:ok, platform_names} <-
            platform_event_names(Keyword.get(opts, :platform_event_names, [])) do
@@ -53,6 +67,8 @@ defmodule Adinize.Event do
          "event_time" => event_time,
          "visitor_id" => visitor_id,
          "page_url" => page_url,
+         "action_source" => if(app_data, do: "app"),
+         "app_data" => app_data,
          "user_data" => user_data,
          "event_data" => event_data,
          "platform_event_names" => platform_names
@@ -102,19 +118,30 @@ defmodule Adinize.Event do
     if keep_query?, do: without_user, else: String.replace(without_user, ~r/[?#].*$/s, "")
   end
 
-  defp user_data(user, default_country)
+  defp user_data(user, default_country, app?)
        when is_list(user) or (is_map(user) and not is_struct(user)) do
     user = Enum.to_list(user)
 
     with :ok <- known_keys(user, @user_keys, "user field"),
-         :ok <- one_phone_source(user) do
+         :ok <- one_phone_source(user),
+         :ok <- device_ids_on_app_only(user, app?) do
       Enum.reduce_while(user, {:ok, %{}}, fn {key, value}, {:ok, acc} ->
         put_user_field(acc, user_field(key, value, default_country))
       end)
     end
   end
 
-  defp user_data(_user, _default_country), do: invalid("user must be a keyword list or map")
+  defp user_data(_user, _default_country, _app?),
+    do: invalid("user must be a keyword list or map")
+
+  # The server refuses a device id on a web event; refuse it here, before
+  # the request, and name the field.
+  defp device_ids_on_app_only(user, app?) do
+    case for({key, value} <- user, key in (@device_ids ++ @click_ids) and value != nil, do: key) do
+      [key | _] when not app? -> invalid("user #{key} needs the app: option")
+      _ -> :ok
+    end
+  end
 
   # A raw phone and a pre-hashed phone key could name two different numbers.
   defp one_phone_source(user) do
@@ -167,6 +194,12 @@ defmodule Adinize.Event do
       else: invalid("user #{key} must be 64 lowercase hex characters")
   end
 
+  defp user_field(key, value, _default_country) when key in @device_ids,
+    do: id_field(key, value, 128)
+
+  defp user_field(key, value, _default_country) when key in @click_ids,
+    do: id_field(key, value, 255)
+
   defp user_field(key, value, _default_country) when key in @plain and is_binary(value),
     do: {:ok, {Atom.to_string(key), value}}
 
@@ -181,9 +214,104 @@ defmodule Adinize.Event do
 
   defp user_field(key, _value, _default_country), do: invalid("user #{key} has the wrong type")
 
+  defp id_field(key, value, max) do
+    if text?(value, max),
+      do: {:ok, {Atom.to_string(key), value}},
+      else: invalid("user #{key} must be 1 to #{max} characters")
+  end
+
   defp hash(:email, value, _country), do: Hash.email(value)
   defp hash(:street_address, value, _country), do: Hash.street_address(value)
   defp hash(_name, value, _country), do: Hash.name(value)
+
+  defp app_data(nil), do: {:ok, nil}
+
+  defp app_data(app) when is_list(app) or (is_map(app) and not is_struct(app)) do
+    if pairs?(app) do
+      app = app |> Enum.to_list() |> Enum.map(fn {k, v} -> {to_atom_key(k), v} end)
+
+      with :ok <- known_app_keys(app),
+           :ok <- each_app_key_once(app),
+           :ok <- app_required(app) do
+        cast_app_fields(app)
+      end
+    else
+      invalid("app must be a keyword list or map")
+    end
+  end
+
+  defp app_data(_app), do: invalid("app must be a keyword list or map")
+
+  # A string key becomes an atom only when it names a known field, so an
+  # unknown string key stays a string and is refused without minting an atom.
+  defp to_atom_key(key) when is_atom(key), do: key
+
+  defp to_atom_key(key) when is_binary(key) do
+    Enum.find(@app_keys, key, &(Atom.to_string(&1) == key))
+  end
+
+  defp known_app_keys(app) do
+    case for({key, _value} <- app, key not in @app_keys, do: key) do
+      [] -> :ok
+      unknown -> invalid("unknown app field: #{inspect(unknown)}")
+    end
+  end
+
+  defp each_app_key_once(app) do
+    keys = Enum.map(app, fn {key, _value} -> key end)
+
+    if keys == Enum.uniq(keys), do: :ok, else: invalid("app names a field more than once")
+  end
+
+  defp cast_app_fields(app) do
+    app
+    |> Enum.reject(fn {_key, value} -> value == nil end)
+    |> Enum.reduce_while({:ok, %{}}, fn {key, value}, {:ok, acc} ->
+      case app_field(key, value) do
+        {:ok, cast} -> {:cont, {:ok, Map.put(acc, Atom.to_string(key), cast)}}
+        error -> {:halt, error}
+      end
+    end)
+  end
+
+  defp app_required(app) do
+    given = for {key, value} <- app, value != nil, do: key
+
+    case Enum.find(@app_required, &(&1 not in given)) do
+      nil -> :ok
+      key -> invalid("app #{key} is required")
+    end
+  end
+
+  defp app_field(:os, value) when value in [:ios, :android, "ios", "android"],
+    do: {:ok, to_string(value)}
+
+  defp app_field(:os, _value), do: invalid("app os must be :ios or :android")
+
+  defp app_field(:att_status, value) when is_atom(value) and value != nil,
+    do: app_field(:att_status, value |> Atom.to_string() |> String.upcase())
+
+  defp app_field(:att_status, value) when value in @att_statuses, do: {:ok, value}
+
+  defp app_field(:att_status, _value),
+    do: invalid("app att_status must be one of #{Enum.join(@att_statuses, ", ")}")
+
+  defp app_field(key, value) when key in @app_booleans do
+    if is_boolean(value), do: {:ok, value}, else: invalid("app #{key} must be true or false")
+  end
+
+  defp app_field(key, value) when key in @app_strings do
+    if text?(value, 128),
+      do: {:ok, value},
+      else: invalid("app #{key} must be 1 to 128 characters")
+  end
+
+  # A UTF-8 string of 1 to `max` code points with a visible character, as
+  # the server counts them.
+  defp text?(value, max) do
+    is_binary(value) and String.valid?(value) and String.trim(value) != "" and
+      not String.contains?(value, <<0>>) and length(String.codepoints(value)) <= max
+  end
 
   defp event_data(data) when is_list(data) or is_map(data) do
     if pairs?(data) do
@@ -194,7 +322,7 @@ defmodule Adinize.Event do
       case personal_key_path(data, "data") do
         nil -> {:ok, data}
         {:improper, path} -> invalid("#{path} must be a proper list")
-        path -> invalid("data must not hold #{path}; pass it under user: so it is hashed")
+        path -> invalid(personal_message(path))
       end
     else
       invalid("data must be a keyword list or a map with string keys")
@@ -259,6 +387,7 @@ defmodule Adinize.Event do
   end
 
   @personal_names ~w(first_name last_name street_address)
+  @device_names ~w(madid idfv anon_id)
 
   # The path of the first key, at any depth, whose name marks personal data.
   # A struct such as a DateTime is a value, not a container.
@@ -290,9 +419,19 @@ defmodule Adinize.Event do
 
   defp personal_key_path(_value, _path), do: nil
 
+  defp personal_message(path) do
+    key = path |> String.split(".") |> List.last() |> String.downcase()
+
+    if key in @device_names,
+      do: "data must not hold #{path}; pass it under user: with app:",
+      else: "data must not hold #{path}; pass it under user: so it is hashed"
+  end
+
   defp personal_name?(name) do
     name = name |> String.trim() |> String.downcase()
-    String.contains?(name, ["email", "phone"]) or name in @personal_names
+
+    String.contains?(name, ["email", "phone"]) or name in @personal_names or
+      name in @device_names
   end
 
   defp known_keys(list, allowed, what) do
