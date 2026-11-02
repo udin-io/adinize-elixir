@@ -32,4 +32,36 @@ defmodule Adinize.Batcher.TelemetrySecurityTest do
     assert map_size(metadata) == 3
     assert Map.keys(metadata) |> Enum.sort() == [:event_id, :event_name, :reason]
   end
+
+  test "a dropped app event's telemetry never carries its device ids or app fields" do
+    name = :"telemetry_sec_app_#{__ENV__.line}"
+    ref = :telemetry_test.attach_event_handlers(self(), [[:adinize, :event, :dropped]])
+
+    start_supervised!(
+      {Adinize.Batcher,
+       Keyword.merge(Stub.opts(name),
+         flush_interval: 60_000,
+         max_batch: 100,
+         max_queue: 1,
+         name: name
+       )},
+      id: name
+    )
+
+    assert :ok = Adinize.Batcher.enqueue(name, "Lead", event_id: "keep")
+
+    assert {:error, :queue_full} =
+             Adinize.Batcher.enqueue(name, "Purchase",
+               event_id: "dropped2",
+               app: [os: :ios, os_version: "17.4", advertiser_tracking_enabled: true],
+               user: [madid: "6D92078A-DEVICE", anon_id: "inst_secret", gbraid: "0AAA-click"]
+             )
+
+    assert_receive {[:adinize, :event, :dropped], ^ref, %{count: 1}, metadata}, 1_000
+    assert metadata.event_id == "dropped2"
+    assert Map.keys(metadata) |> Enum.sort() == [:event_id, :event_name, :reason]
+
+    for secret <- ["6D92078A-DEVICE", "inst_secret", "0AAA-click", "17.4"],
+        do: refute(inspect(metadata) =~ secret)
+  end
 end

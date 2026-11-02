@@ -116,6 +116,53 @@ defmodule Adinize.ContractTest do
     assert {:error, _} = ExJsonSchema.Validator.validate(root, bad)
   end
 
+  test "an app event validates, with every app field and every device id", %{root: root} do
+    json =
+      body_sent("Purchase",
+        event_id: "fund_42",
+        app: [
+          os: :ios,
+          os_version: "17.4",
+          advertiser_tracking_enabled: true,
+          application_tracking_enabled: true,
+          att_status: :authorized,
+          bundle_id: "com.bokra.app",
+          app_version: "3.2.0",
+          app_store_id: "6443210987",
+          device_model: "iPhone15,2",
+          locale: "ar_EG",
+          timezone: "Africa/Cairo",
+          carrier: "Vodafone"
+        ],
+        user: [
+          email: "a@b.co",
+          madid: "6D92078A-8246-4BA4-AE5B-76104861E7DC",
+          idfv: "A1B2",
+          anon_id: "inst_9f2",
+          gbraid: "0AAA",
+          wbraid: "0BBB"
+        ],
+        data: [value: 500, currency: "EGP"]
+      )
+
+    event = hd(json["events"])
+    assert event["action_source"] == "app"
+    assert map_size(event["app_data"]) == 12
+    assert Enum.all?(~w(madid idfv anon_id gbraid wbraid), &Map.has_key?(event["user_data"], &1))
+    assert ExJsonSchema.Validator.validate(root, json) == :ok
+  end
+
+  test "the schema refuses an app event without os_version, so the check has teeth",
+       %{root: root} do
+    json =
+      body_sent("Purchase",
+        app: [os: :ios, os_version: "17.4", advertiser_tracking_enabled: true]
+      )
+
+    bad = update_in(json, ["events", Access.at(0), "app_data"], &Map.delete(&1, "os_version"))
+    assert {:error, _} = ExJsonSchema.Validator.validate(root, bad)
+  end
+
   test "a minimal event validates", %{root: root} do
     assert ExJsonSchema.Validator.validate(root, body_sent("Lead", [])) == :ok
   end
