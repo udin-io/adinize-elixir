@@ -31,21 +31,46 @@ paths:
           application/json:
             schema:
               $ref: "#/components/schemas/EventBatch"
-            example:
-              events:
-                - event_id: order_10482
-                  event_name: Purchase
-                  event_time: 1790500000
-                  visitor_id: mb.1790499000000.k3j9x2a1b
-                  page_url: https://shop.example.com/checkout/thank-you
-                  user_data:
-                    email_hash: 259b65833bbadfd58ee66dde290489a6e51518339de4886d2331027751f0913a
-                    client_ip_address: 203.0.113.7
-                    client_user_agent: "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X)"
-                  event_data:
-                    value: 129.5
-                    currency: EGP
-                    order_id: "10482"
+            examples:
+              website:
+                summary: A purchase on a website
+                value:
+                  events:
+                    - event_id: order_10482
+                      event_name: Purchase
+                      event_time: 1790500000
+                      visitor_id: mb.1790499000000.k3j9x2a1b
+                      page_url: https://shop.example.com/checkout/thank-you
+                      user_data:
+                        email_hash: 259b65833bbadfd58ee66dde290489a6e51518339de4886d2331027751f0913a
+                        client_ip_address: 203.0.113.7
+                        client_user_agent: "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X)"
+                      event_data:
+                        value: 129.5
+                        currency: EGP
+                        order_id: "10482"
+              app:
+                summary: A purchase in an iOS app
+                value:
+                  events:
+                    - event_id: fund_42
+                      event_name: Purchase
+                      event_time: 1790500000
+                      action_source: app
+                      app_data:
+                        os: ios
+                        os_version: "17.4"
+                        advertiser_tracking_enabled: true
+                        bundle_id: com.bokra.app
+                        app_version: 3.2.0
+                      user_data:
+                        email_hash: 259b65833bbadfd58ee66dde290489a6e51518339de4886d2331027751f0913a
+                        madid: 6D92078A-8246-4BA4-AE5B-76104861E7DC
+                        anon_id: inst_9f2
+                        gbraid: 0AAAAAoA-bokra-example
+                      event_data:
+                        value: 500
+                        currency: EGP
       responses:
         "200":
           description: The batch parsed. Read each result for its status.
@@ -181,6 +206,17 @@ components:
           type: string
         user_data:
           $ref: "#/components/schemas/UserData"
+        action_source:
+          type: string
+          enum: [website, app]
+          default: website
+          description: |
+            Where the event happened. Send `app` for an event in your mobile
+            app, with `app_data`. Meta receives it as an app event. TikTok and
+            Google Ads do not receive app events yet: adinize skips them for
+            those two and records why.
+        app_data:
+          $ref: "#/components/schemas/AppData"
         event_data:
           type: object
           additionalProperties: true
@@ -197,6 +233,73 @@ components:
               type: array
               items:
                 type: string
+    AppData:
+      type: object
+      additionalProperties: false
+      required: [os, os_version, advertiser_tracking_enabled]
+      description: |
+        Required when action_source is `app`, and refused on any other event.
+        Meta needs `os`, `os_version` and `advertiser_tracking_enabled` on
+        every app event. Each string is 1 to 128 characters (Unicode code
+        points) and not blank.
+      properties:
+        os:
+          type: string
+          enum: [ios, android]
+        os_version:
+          type: string
+          minLength: 1
+          maxLength: 128
+          example: "17.4"
+        advertiser_tracking_enabled:
+          type: boolean
+          description: |
+            Whether the user allows tracking: on iOS 14.5 and later, true
+            only when App Tracking Transparency is authorized. When false,
+            or when `att_status` is DENIED, RESTRICTED or NOT_DETERMINED,
+            adinize drops `user_data.madid` and never stores it. It also
+            drops the all-zero IDFA.
+        application_tracking_enabled:
+          type: boolean
+          description: The user's own app-level ad tracking choice.
+        att_status:
+          type: string
+          enum: [AUTHORIZED, DENIED, NOT_DETERMINED, RESTRICTED, NOT_APPLICABLE]
+        bundle_id:
+          type: string
+          minLength: 1
+          maxLength: 128
+          description: The app's bundle id (iOS) or package name (Android).
+          example: com.bokra.app
+        app_version:
+          type: string
+          minLength: 1
+          maxLength: 128
+          example: 3.2.0
+        app_store_id:
+          type: string
+          minLength: 1
+          maxLength: 128
+          description: The App Store id on iOS, the package name on Android.
+        device_model:
+          type: string
+          minLength: 1
+          maxLength: 128
+          example: iPhone15,2
+        locale:
+          type: string
+          minLength: 1
+          maxLength: 128
+          example: ar_EG
+        timezone:
+          type: string
+          minLength: 1
+          maxLength: 128
+          example: Africa/Cairo
+        carrier:
+          type: string
+          minLength: 1
+          maxLength: 128
     UserData:
       type: object
       description: |
@@ -204,7 +307,8 @@ components:
         `phone` is rejected with RAW_PII. Each *_hash is the SHA-256 of the
         trimmed, lowercased value, as 64 lowercase hex characters; the two
         phone hashes hash the E.164 number instead. Every value is a string,
-        except `consent`.
+        except `consent`. `madid`, `idfv`, `anon_id`, `gbraid` and `wbraid`
+        are refused on an event whose action_source is not `app`.
       properties:
         email_hash:
           $ref: "#/components/schemas/Sha256"
@@ -245,6 +349,10 @@ components:
           type: string
         gclid:
           type: string
+          description: |
+            Google's click id. On an app event, Google Ads receives it when
+            no Google ad click is on record for the visitor; a website
+            event's own `gclid` is not sent.
         ttp:
           type: string
           description: |
@@ -264,6 +372,32 @@ components:
           type: string
         country_code:
           type: string
+        madid:
+          $ref: "#/components/schemas/DeviceId"
+          description: |
+            The mobile advertising id: IDFA on iOS, GAID on Android. Send it
+            raw, not hashed. App events only, and dropped when
+            `app_data.advertiser_tracking_enabled` is false.
+        idfv:
+          $ref: "#/components/schemas/DeviceId"
+          description: The iOS identifier for vendor, raw. App events only.
+        anon_id:
+          $ref: "#/components/schemas/DeviceId"
+          description: |
+            Your app's own install id, raw. App events only. Meta matches
+            app events with it.
+        gbraid:
+          $ref: "#/components/schemas/AppClickId"
+          description: |
+            Google's click id for an ad click that opened your iOS app. App
+            events only. Google Ads receives it beside `gclid` when both are
+            sent.
+        wbraid:
+          $ref: "#/components/schemas/AppClickId"
+          description: |
+            Google's click id for an ad click in an iOS app that opened a
+            web page. App events only. Google Ads receives it only when the
+            event carries no `gclid` or `gbraid`.
         consent:
           type: object
           properties:
@@ -273,6 +407,14 @@ components:
               type: boolean
             functional:
               type: boolean
+    DeviceId:
+      type: string
+      minLength: 1
+      maxLength: 128
+    AppClickId:
+      type: string
+      minLength: 1
+      maxLength: 255
     Sha256:
       type: string
       pattern: "^[0-9a-f]{64}$"
